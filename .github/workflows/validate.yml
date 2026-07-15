@@ -101,4 +101,5 @@ jobs:
             -strict \
             -summary \
             -ignore-missing-schemas \
+            -kubernetes-version 1.31.0 \
             deploy/kubernetes/base/*.yaml
