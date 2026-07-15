@@ -23,7 +23,15 @@ else
 fi
 
 if command -v kubectl >/dev/null 2>&1; then
-  kubectl apply --dry-run=client -k deploy/kubernetes/base >/dev/null
+  kubectl kustomize deploy/kubernetes/base >/dev/null
+  echo "PASS: kubectl kustomize"
+
+  if kubectl cluster-info --request-timeout=3s >/dev/null 2>&1; then
+    kubectl apply --dry-run=client -k deploy/kubernetes/base >/dev/null
+    echo "PASS: kubectl client dry-run"
+  else
+    echo "SKIP: Kubernetes API server is not reachable; kubectl client dry-run was not run"
+  fi
 else
   echo "SKIP: kubectl is not installed"
 fi
