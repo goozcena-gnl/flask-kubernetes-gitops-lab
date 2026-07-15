@@ -1,0 +1,45 @@
+global:
+  edition: ce
+  hosts:
+    domain: gitlab.example.test
+    https: false
+  ingress:
+    class: nginx
+    configureCertmanager: false
+
+certmanager:
+  install: false
+
+nginx-ingress:
+  enabled: false
+
+prometheus:
+  install: false
+
+gitlab-runner:
+  install: true
+
+registry:
+  enabled: false
+
+gitlab:
+  webservice:
+    minReplicas: 1
+    maxReplicas: 1
+    resources:
+      requests:
+        cpu: 300m
+        memory: 3Gi
+      limits:
+        cpu: 800m
+        memory: 4Gi
+  sidekiq:
+    minReplicas: 1
+    maxReplicas: 1
+    resources:
+      requests:
+        cpu: 500m
+        memory: 2Gi
+      limits:
+        cpu: 1500m
+        memory: 3Gi

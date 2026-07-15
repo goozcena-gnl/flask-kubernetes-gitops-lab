@@ -1,0 +1,13 @@
+global:
+  domain: argocd.example.test
+
+configs:
+  params:
+    server.insecure: true
+
+server:
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    hostname: argocd.example.test
+    tls: true
