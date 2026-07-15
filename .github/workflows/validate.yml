@@ -1,6 +1,6 @@
 name: Validation
 
-on:
+"on":
   pull_request:
   push:
     branches:
@@ -37,13 +37,18 @@ jobs:
       - name: Install Hadolint
         run: |
           HADOLINT_VERSION="v2.12.0"
-          curl -fsSL "https://github.com/hadolint/hadolint/releases/download/${HADOLINT_VERSION}/hadolint-Linux-x86_64" -o /usr/local/bin/hadolint
+          curl -fsSL \
+            "https://github.com/hadolint/hadolint/releases/download/${HADOLINT_VERSION}/hadolint-Linux-x86_64" \
+            -o /usr/local/bin/hadolint
           chmod +x /usr/local/bin/hadolint
 
       - name: Install kubeconform
         run: |
           KUBECONFORM_VERSION="v0.6.7"
-          curl -fsSL "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz" -o /tmp/kubeconform.tar.gz
+          KUBECONFORM_BASE="https://github.com/yannh/kubeconform/releases/download"
+          curl -fsSL \
+            "${KUBECONFORM_BASE}/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz" \
+            -o /tmp/kubeconform.tar.gz
           tar -xzf /tmp/kubeconform.tar.gz -C /tmp
           sudo mv /tmp/kubeconform /usr/local/bin/kubeconform
           chmod +x /usr/local/bin/kubeconform
@@ -83,7 +88,13 @@ jobs:
           }
           trap cleanup EXIT
 
-          timeout 90 sh -c 'until [ "$(docker inspect -f "{{.State.Health.Status}}" flask-smoke 2>/dev/null)" = "healthy" ]; do sleep 2; done'
+          i=0
+          while [ "$i" -lt 45 ]; do
+            s=$(docker inspect -f '{{.State.Health.Status}}' flask-smoke 2>/dev/null || true)
+            [ "$s" = "healthy" ] && break
+            sleep 2
+            i=$((i + 1))
+          done
 
           curl --fail --silent --show-error http://127.0.0.1:8080/ >/dev/null
           curl --fail --silent --show-error http://127.0.0.1:8080/healthz >/dev/null
