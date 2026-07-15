@@ -1,14 +1,28 @@
 #!/usr/bin/env sh
 set -eu
 
-python -m compileall -q app
-pytest -q
-ruff check .
-ruff format --check .
-yamllint -c .yamllint.yaml .
-python scripts/check-yaml.py
-python scripts/check-markdown-links.py
-python scripts/scan-secrets.py
+script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+repo_root=$(CDPATH= cd -- "$script_dir/.." && pwd)
+
+if [ -x "$repo_root/.venv/bin/python" ]; then
+  python_cmd="$repo_root/.venv/bin/python"
+elif command -v python3 >/dev/null 2>&1; then
+  python_cmd=$(command -v python3)
+else
+  echo "ERROR: Python 3 is not available" >&2
+  exit 1
+fi
+
+cd "$repo_root"
+
+"$python_cmd" -m compileall -q app
+"$python_cmd" -m pytest -q
+"$python_cmd" -m ruff check .
+"$python_cmd" -m ruff format --check .
+"$python_cmd" -m yamllint -c .yamllint.yaml .
+"$python_cmd" scripts/check-yaml.py
+"$python_cmd" scripts/check-markdown-links.py
+"$python_cmd" scripts/scan-secrets.py
 
 if command -v hadolint >/dev/null 2>&1; then
   hadolint Dockerfile
@@ -17,7 +31,11 @@ else
 fi
 
 if command -v kubeconform >/dev/null 2>&1; then
-  kubeconform -strict -summary -ignore-missing-schemas deploy/kubernetes/base/*.yaml
+  kubeconform \
+    -strict \
+    -summary \
+    -ignore-missing-schemas \
+    deploy/kubernetes/base/*.yaml
 else
   echo "SKIP: kubeconform is not installed"
 fi
@@ -27,7 +45,10 @@ if command -v kubectl >/dev/null 2>&1; then
   echo "PASS: kubectl kustomize"
 
   if kubectl cluster-info --request-timeout=3s >/dev/null 2>&1; then
-    kubectl apply --dry-run=client -k deploy/kubernetes/base >/dev/null
+    kubectl apply \
+      --dry-run=client \
+      -k deploy/kubernetes/base \
+      >/dev/null
     echo "PASS: kubectl client dry-run"
   else
     echo "SKIP: Kubernetes API server is not reachable; kubectl client dry-run was not run"
