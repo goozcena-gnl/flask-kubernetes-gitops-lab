@@ -1,0 +1,104 @@
+name: Validation
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Repository validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r app/requirements.txt -r app/requirements-dev.txt
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: v1.31.0
+
+      - name: Install Hadolint
+        run: |
+          HADOLINT_VERSION="v2.12.0"
+          curl -fsSL "https://github.com/hadolint/hadolint/releases/download/${HADOLINT_VERSION}/hadolint-Linux-x86_64" -o /usr/local/bin/hadolint
+          chmod +x /usr/local/bin/hadolint
+
+      - name: Install kubeconform
+        run: |
+          KUBECONFORM_VERSION="v0.6.7"
+          curl -fsSL "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz" -o /tmp/kubeconform.tar.gz
+          tar -xzf /tmp/kubeconform.tar.gz -C /tmp
+          sudo mv /tmp/kubeconform /usr/local/bin/kubeconform
+          chmod +x /usr/local/bin/kubeconform
+
+      - name: Flask tests
+        run: python -m pytest -q
+
+      - name: Ruff lint
+        run: python -m ruff check .
+
+      - name: Ruff formatting check
+        run: python -m ruff format --check .
+
+      - name: YAML lint
+        run: python -m yamllint -c .yamllint.yaml .
+
+      - name: YAML parsing
+        run: python scripts/check-yaml.py
+
+      - name: Markdown-link validation
+        run: python scripts/check-markdown-links.py
+
+      - name: Fallback secret scan
+        run: python scripts/scan-secrets.py
+
+      - name: Docker image build
+        run: docker build -t flask-k8s-lab:ci .
+
+      - name: Read-only container smoke test
+        run: |
+          set -eu
+          docker rm -f flask-smoke >/dev/null 2>&1 || true
+          docker run -d --name flask-smoke --read-only --tmpfs /tmp -p 8080:8080 flask-k8s-lab:ci
+          cleanup() {
+            docker logs flask-smoke || true
+            docker rm -f flask-smoke >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          timeout 90 sh -c 'until [ "$(docker inspect -f "{{.State.Health.Status}}" flask-smoke 2>/dev/null)" = "healthy" ]; do sleep 2; done'
+
+          curl --fail --silent --show-error http://127.0.0.1:8080/ >/dev/null
+          curl --fail --silent --show-error http://127.0.0.1:8080/healthz >/dev/null
+          curl --fail --silent --show-error http://127.0.0.1:8080/readyz >/dev/null
+
+      - name: Kustomize rendering
+        run: kubectl kustomize deploy/kubernetes/base >/dev/null
+
+      - name: Hadolint
+        run: hadolint --failure-threshold error Dockerfile
+
+      - name: kubeconform
+        run: |
+          kubeconform \
+            -strict \
+            -summary \
+            -ignore-missing-schemas \
+            deploy/kubernetes/base/*.yaml
