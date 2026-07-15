@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: flask-k8s-lab
+  namespace: flask-k8s-lab
+  labels:
+    app.kubernetes.io/name: flask-k8s-lab
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: flask-k8s-lab
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
