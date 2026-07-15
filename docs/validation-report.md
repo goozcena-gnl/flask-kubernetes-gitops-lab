@@ -7,7 +7,8 @@ Validation was executed against the cleaned working tree with Python 3.13.5; the
 | PASS | Python syntax | `python -m compileall -q app` | All application and test modules compiled. |
 | PASS | Application tests | `pytest -q` | 3 tests passed. |
 | PASS | Ruff lint | `ruff check .` | All checks passed. |
-| PASS | Ruff formatting | `ruff format --check .` | 8 Python files already formatted. |
+| PASS | Ruff formatting | `ruff format --check .` | 8 files already formatted. |
+| PASS | kubectl kustomize | `kubectl kustomize deploy/kubernetes/base` | Base manifests rendered locally. |
 | PASS | YAML lint | `yamllint -c .yamllint.yaml .` | No lint errors. |
 | PASS | YAML parsing | `python scripts/check-yaml.py` | GitLab CI, Argo CD, Helm values, and Kubernetes YAML parsed. |
 | PASS | Kubernetes schema | Python `kubernetes-validate` against Kubernetes 1.35 schemas | Deployment, Ingress, Namespace, Service, and optional PVC validated strictly. |
@@ -22,10 +23,10 @@ Validation was executed against the cleaned working tree with Python 3.13.5; the
 | PASS | Git history | `git log --oneline --reverse` | Five small commits created on `chore/import-clean-devops-lab`. |
 | PASS | Final worktree status | `git status -sb` | Branch clean; no unstaged or untracked publishable files. |
 | NOT RUN | Gitleaks or TruffleHog | `gitleaks detect` / `trufflehog filesystem` | Neither scanner is installed; the fallback scanner ran instead. |
-| NOT RUN | Hadolint | `hadolint Dockerfile` | Hadolint is not installed. |
+| BLOCKED | kubectl client dry-run | `kubectl apply --dry-run=client -k deploy/kubernetes/base` | No reachable Kubernetes API server. |
+| NOT RUN | Hadolint | `hadolint Dockerfile` | Binary not installed. |
 | NOT RUN | Docker or Buildah build | `docker build ...` / `buildah bud ...` | No container runtime or Buildah binary is available. |
 | NOT RUN | Container smoke test | `docker run ...` | Blocked by the missing container runtime. |
-| NOT RUN | kubeconform | `kubeconform ...` | kubeconform is not installed; `kubernetes-validate` ran as the schema equivalent. |
-| NOT RUN | kubectl client dry-run | `kubectl apply --dry-run=client -k deploy/kubernetes/base` | kubectl is not installed. |
+| NOT RUN | kubeconform | `kubeconform ...` | Binary not installed. |
 | NOT RUN | Helm rendering | `helm template ...` | Helm and chart archives are not installed. |
 | NOT RUN | GitLab CI Lint API | GitLab CI lint service | No target GitLab service or lint API credential was provided. |
