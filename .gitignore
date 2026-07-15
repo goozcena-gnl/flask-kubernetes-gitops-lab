@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.venv/
+coverage.xml
+htmlcov/
+
+# Build output
+dist/
+*.oci
+*.tar
+
+# Local editors and operating systems
+.vscode/
+.idea/
+.DS_Store
+
+# Credentials and local environment
+.env
+.env.*
+.envrc
+*.key
+*.pem
+*.crt
+*.p12
+*.pfx
+kubeconfig
+kubeconfig-*
+*.kubeconfig
+.kube/
+auth.json
+
+# Kubernetes and Argo CD secrets
+**/repository-secret.yaml
+**/*-secret.yaml
+!deploy/argocd/repository-secret.example.yaml
