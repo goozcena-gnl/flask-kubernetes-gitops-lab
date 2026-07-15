@@ -1,0 +1,104 @@
+stages:
+  - validate
+  - build
+  - publish
+
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+    - when: never
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  STORAGE_DRIVER: vfs
+  BUILDAH_FORMAT: oci
+  BUILDAH_ISOLATION: chroot
+  IMAGE_TAG: "$CI_COMMIT_SHA"
+  IMAGE_REPOSITORY: "${REGISTRY_HOST}/${REGISTRY_NAMESPACE}/${CI_PROJECT_PATH_SLUG}"
+  IMAGE: "${IMAGE_REPOSITORY}:${IMAGE_TAG}"
+  LOCAL_IMAGE: "localhost/flask-k8s-lab:${CI_COMMIT_SHA}"
+
+.default_rules:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH'
+
+validate:
+  stage: validate
+  image: python:3.12.13-alpine3.22
+  extends: .default_rules
+  cache:
+    key:
+      files:
+        - app/requirements.txt
+        - app/requirements-dev.txt
+    paths:
+      - .cache/pip
+  before_script:
+    - python -m pip install --requirement app/requirements.txt --requirement app/requirements-dev.txt
+  script:
+    - python -m compileall -q app
+    - pytest -q
+    - ruff check .
+    - ruff format --check .
+    - yamllint -c .yamllint.yaml .
+    - python scripts/check-yaml.py
+    - python scripts/check-markdown-links.py
+    - python scripts/scan-secrets.py
+
+build_image:
+  stage: build
+  image: quay.io/buildah/stable:v1.42.1
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      changes:
+        - Dockerfile
+        - .dockerignore
+        - app/**/*
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      changes:
+        - Dockerfile
+        - .dockerignore
+        - app/**/*
+    - when: never
+  script:
+    - mkdir -p dist
+    - buildah --storage-driver="$STORAGE_DRIVER" bud --format="$BUILDAH_FORMAT" --layers -t "$LOCAL_IMAGE" .
+    - |
+      buildah --storage-driver="$STORAGE_DRIVER" push "$LOCAL_IMAGE" \
+        "oci-archive:$CI_PROJECT_DIR/dist/image.oci:$LOCAL_IMAGE"
+  artifacts:
+    paths:
+      - dist/image.oci
+    expire_in: 1 day
+
+publish_image:
+  stage: publish
+  image: quay.io/buildah/stable:v1.42.1
+  needs:
+    - job: build_image
+      artifacts: true
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      changes:
+        - Dockerfile
+        - .dockerignore
+        - app/**/*
+    - when: never
+  before_script:
+    - test -n "$REGISTRY_HOST"
+    - test -n "$REGISTRY_NAMESPACE"
+    - test -n "$REGISTRY_USER"
+    - test -n "$REGISTRY_PASSWORD"
+    - mkdir -p /tmp/containers-auth
+    - export REGISTRY_AUTH_FILE=/tmp/containers-auth/auth.json
+    - printf '%s' "$REGISTRY_PASSWORD" | buildah login "$REGISTRY_HOST" --username "$REGISTRY_USER" --password-stdin
+  script:
+    - buildah --storage-driver="$STORAGE_DRIVER" pull "oci-archive:$CI_PROJECT_DIR/dist/image.oci:$LOCAL_IMAGE"
+    - buildah --storage-driver="$STORAGE_DRIVER" tag "$LOCAL_IMAGE" "$IMAGE"
+    - buildah --storage-driver="$STORAGE_DRIVER" push --authfile "$REGISTRY_AUTH_FILE" "$IMAGE" "docker://$IMAGE"
+    - 'printf "Published immutable image: %s\\n" "$IMAGE"'
+  after_script:
+    - rm -rf /tmp/containers-auth
