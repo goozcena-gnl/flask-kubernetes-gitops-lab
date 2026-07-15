@@ -93,7 +93,7 @@ jobs:
         run: kubectl kustomize deploy/kubernetes/base >/dev/null
 
       - name: Hadolint
-        run: hadolint Dockerfile
+        run: hadolint --failure-threshold error Dockerfile
 
       - name: kubeconform
         run: |
