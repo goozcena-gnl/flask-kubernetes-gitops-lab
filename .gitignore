@@ -1,6 +1,7 @@
 # Python
 __pycache__/
 *.py[cod]
+.cache/
 .pytest_cache/
 .ruff_cache/
 .venv/
