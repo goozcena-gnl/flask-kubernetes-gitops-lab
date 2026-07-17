@@ -1,6 +1,6 @@
 # Flask Kubernetes GitOps Lab
 
-A compact portfolio lab demonstrating a hardened Flask container, GitLab CI image delivery with Buildah, Kubernetes workload security, ingress-nginx, and Argo CD reconciliation.
+A portfolio lab demonstrating a hardened Flask container, GitLab CI image delivery with Buildah, Kubernetes workload security, Traefik OSS ingress, Minikube, and Argo CD reconciliation.
 
 ## Architecture
 
@@ -15,7 +15,7 @@ See [the architecture document](docs/architecture.md) for the delivery diagram a
 - Buildah-based GitLab CI with OCI artifacts and protected registry variables;
 - Kubernetes Deployment, Service, Ingress, probes, resources, Kustomize, and restricted Pod Security settings;
 - Argo CD automated sync, prune, and self-heal;
-- Helm values for GitLab, Argo CD, and ingress-nginx;
+- Helm values for GitLab, Argo CD, Traefik, and Minikube;
 - credential sanitisation, safe examples, and reproducible validation.
 
 ## Repository structure
@@ -37,7 +37,15 @@ See [the architecture document](docs/architecture.md) for the delivery diagram a
 
 For local application checks: Python 3.12 and `pip`.
 
-For the full lab: a container engine, `kubectl`, Kustomize support, Helm, a Kubernetes cluster with ingress-nginx, an OCI registry, GitLab CI, and Argo CD.
+For the complete local GitOps lab:
+
+- Docker;
+- Minikube;
+- kubectl;
+- Helm;
+- Traefik OSS;
+- Argo CD;
+- access to the private GitLab Container Registry.
 
 ## Local application test
 
@@ -116,24 +124,55 @@ python scripts/set-image.py "$REGISTRY_HOST/$REGISTRY_NAMESPACE/$CI_PROJECT_PATH
 
 1. Install Argo CD with an explicitly pinned chart version and adapt `deploy/helm-values/argocd.yaml`.
 2. For a private repository, copy `deploy/argocd/repository-secret.example.yaml` outside the repository, replace every placeholder, apply it locally, and delete the working copy.
-3. Replace `<GIT_REPOSITORY_URL>` in `deploy/argocd/application.yaml` locally or through an environment overlay.
-4. Apply the Application:
+3. Apply the Minikube Application:
 
 ```bash
-kubectl apply -f deploy/argocd/application.yaml
+kubectl apply -f deploy/argocd/application-minikube.yaml
 ```
 
-Argo CD watches `deploy/kubernetes/base`, creates the namespace, prunes removed resources, and self-heals drift.
+Argo CD watches `deploy/kubernetes/overlays/minikube`, creates the namespace, prunes removed resources, and self-heals drift.
 
-## GitLab, Argo CD, and ingress-nginx values
+## Minikube GitOps environment
 
-The files under `deploy/helm-values/` replace conflicting environment-specific copies from the source archive. They deliberately contain generic domains and no storage class or IP address. Choose and record compatible chart versions before installation, for example:
+Bootstrap the local platform:
 
 ```bash
-helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
-  --namespace ingress-nginx --create-namespace \
+./scripts/bootstrap-minikube-platform.sh
+```
+
+Create the local registry pull Secret:
+
+```bash
+./scripts/create-gitlab-registry-secret.sh
+```
+
+Apply the Argo CD Application:
+
+```bash
+kubectl apply -f deploy/argocd/application-minikube.yaml
+```
+
+Expose Traefik:
+
+```bash
+./scripts/port-forward-traefik.sh
+```
+
+Open:
+
+```
+http://flask-k8s-lab.localhost:8081/
+```
+
+## GitLab, Argo CD, and Traefik values
+
+The files under `deploy/helm-values/` are portable starting points. They deliberately contain generic domains and no storage class or IP address. Choose and record compatible chart versions before installation, for example:
+
+```bash
+helm upgrade --install traefik traefik/traefik \
+  --namespace traefik --create-namespace \
   --version <PINNED_CHART_VERSION> \
-  -f deploy/helm-values/ingress-nginx.yaml
+  -f deploy/helm-values/traefik-minikube.yaml
 ```
 
 ## Security model
@@ -159,6 +198,7 @@ Optional checks run when `hadolint`, `kubeconform`, and `kubectl` are available.
 - [Security decisions](docs/security-decisions.md)
 - [Canonical lab report](docs/lab-report.md)
 - [Validation report](docs/validation-report.md)
+- [Minikube, Traefik, and Argo CD E2E validation](docs/minikube-argocd-e2e.md)
 
 ## Limitations
 
