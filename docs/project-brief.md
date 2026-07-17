@@ -5,7 +5,7 @@ Build a reproducible DevOps lab around a small HTTP application. The lab must de
 - application validation and containerisation;
 - immutable image publication from GitLab CI with Buildah;
 - Kubernetes workload, Service, Ingress, probes, resources, and restricted security settings;
-- deployment of supporting GitLab, ingress-nginx, and Argo CD components through documented Helm values;
+- deployment of supporting GitLab, Traefik OSS, and Argo CD components through documented Helm values;
 - a GitOps delivery model in which desired state is versioned in Git and Argo CD performs reconciliation;
 - operational verification and concise technical documentation.
 
