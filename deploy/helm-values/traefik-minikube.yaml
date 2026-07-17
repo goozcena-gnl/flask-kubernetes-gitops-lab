@@ -9,6 +9,10 @@ ingressClass:
 providers:
   kubernetesIngress:
     enabled: true
+
+    ingressEndpoint:
+      hostname: flask-k8s-lab.localhost
+
     publishedService:
       enabled: false
 
