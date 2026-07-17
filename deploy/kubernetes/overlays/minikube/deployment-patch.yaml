@@ -1,0 +1,10 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flask-k8s-lab
+  namespace: flask-k8s-lab
+spec:
+  template:
+    spec:
+      imagePullSecrets:
+        - name: gitlab-registry

@@ -32,7 +32,7 @@ jobs:
       - name: Install kubectl
         uses: azure/setup-kubectl@v4
         with:
-          version: v1.31.0
+          version: v1.35.0
 
       - name: Install Hadolint
         run: |
@@ -112,5 +112,5 @@ jobs:
             -strict \
             -summary \
             -ignore-missing-schemas \
-            -kubernetes-version 1.31.0 \
+            -kubernetes-version 1.35.0 \
             deploy/kubernetes/base/*.yaml
