@@ -85,12 +85,20 @@ kubectl apply -k deploy/kubernetes/optional-storage
 
 ## GitLab CI/CD workflow
 
-Required masked and protected variables for publishing are:
+### GitLab Container Registry authentication
 
-- `REGISTRY_HOST`;
-- `REGISTRY_NAMESPACE`;
-- `REGISTRY_USER`;
-- `REGISTRY_PASSWORD`.
+When the GitLab Container Registry is enabled, the publish job uses GitLab's
+job-scoped predefined variables:
+
+- `CI_REGISTRY`
+- `CI_REGISTRY_IMAGE`
+- `CI_REGISTRY_USER`
+- `CI_REGISTRY_PASSWORD`
+
+No permanent registry password is required for the pipeline.
+
+For an external OCI registry, adapt the publish job and store credentials as
+masked and protected CI/CD variables.
 
 The pipeline stages are:
 

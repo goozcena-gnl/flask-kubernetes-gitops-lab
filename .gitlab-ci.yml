@@ -15,9 +15,6 @@ variables:
   STORAGE_DRIVER: vfs
   BUILDAH_FORMAT: oci
   BUILDAH_ISOLATION: chroot
-  IMAGE_TAG: "$CI_COMMIT_SHA"
-  IMAGE_REPOSITORY: "${REGISTRY_HOST}/${REGISTRY_NAMESPACE}/${CI_PROJECT_PATH_SLUG}"
-  IMAGE: "${IMAGE_REPOSITORY}:${IMAGE_TAG}"
   LOCAL_IMAGE: "localhost/flask-k8s-lab:${CI_COMMIT_SHA}"
 
 .default_rules:
@@ -54,11 +51,13 @@ build_image:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       changes:
+        - .gitlab-ci.yml
         - Dockerfile
         - .dockerignore
         - app/**/*
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
       changes:
+        - .gitlab-ci.yml
         - Dockerfile
         - .dockerignore
         - app/**/*
@@ -83,22 +82,47 @@ publish_image:
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
       changes:
+        - .gitlab-ci.yml
         - Dockerfile
         - .dockerignore
         - app/**/*
     - when: never
   before_script:
-    - test -n "$REGISTRY_HOST"
-    - test -n "$REGISTRY_NAMESPACE"
-    - test -n "$REGISTRY_USER"
-    - test -n "$REGISTRY_PASSWORD"
+    - test -n "$CI_REGISTRY"
+    - test -n "$CI_REGISTRY_IMAGE"
+    - test -n "$CI_REGISTRY_USER"
+    - test -n "$CI_REGISTRY_PASSWORD"
     - mkdir -p /tmp/containers-auth
     - export REGISTRY_AUTH_FILE=/tmp/containers-auth/auth.json
-    - printf '%s' "$REGISTRY_PASSWORD" | buildah login "$REGISTRY_HOST" --username "$REGISTRY_USER" --password-stdin
+    - |
+      printf '%s' "$CI_REGISTRY_PASSWORD" |
+        buildah login \
+          --authfile "$REGISTRY_AUTH_FILE" \
+          --username "$CI_REGISTRY_USER" \
+          --password-stdin \
+          "$CI_REGISTRY"
   script:
-    - buildah --storage-driver="$STORAGE_DRIVER" pull "oci-archive:$CI_PROJECT_DIR/dist/image.oci:$LOCAL_IMAGE"
-    - buildah --storage-driver="$STORAGE_DRIVER" tag "$LOCAL_IMAGE" "$IMAGE"
-    - buildah --storage-driver="$STORAGE_DRIVER" push --authfile "$REGISTRY_AUTH_FILE" "$IMAGE" "docker://$IMAGE"
-    - 'printf "Published immutable image: %s\\n" "$IMAGE"'
+    - |
+      target_image="${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}"
+
+      buildah \
+        --storage-driver="$STORAGE_DRIVER" \
+        pull \
+        "oci-archive:$CI_PROJECT_DIR/dist/image.oci:$LOCAL_IMAGE"
+
+      buildah \
+        --storage-driver="$STORAGE_DRIVER" \
+        tag \
+        "$LOCAL_IMAGE" \
+        "$target_image"
+
+      buildah \
+        --storage-driver="$STORAGE_DRIVER" \
+        push \
+        --authfile "$REGISTRY_AUTH_FILE" \
+        "$target_image" \
+        "docker://$target_image"
+
+      printf 'Published immutable image: %s\n' "$target_image"
   after_script:
     - rm -rf /tmp/containers-auth

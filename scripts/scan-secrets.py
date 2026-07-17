@@ -8,6 +8,17 @@ import sys
 from pathlib import Path
 
 BINARY_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
+
+IGNORED_DIRECTORIES = {
+    ".git",
+    ".venv",
+    ".cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    "dist",
+    "__pycache__",
+}
+
 ALLOW_PLACEHOLDERS = {
     "<GIT_REPOSITORY_URL>",
     "<GIT_USERNAME>",
@@ -28,7 +39,7 @@ findings: list[str] = []
 for path in sorted(Path(".").rglob("*")):
     if (
         not path.is_file()
-        or any(part in {".git", ".venv", "dist", "__pycache__"} for part in path.parts)
+        or any(part in IGNORED_DIRECTORIES for part in path.parts)
         or path.suffix.lower() in BINARY_SUFFIXES
     ):
         continue

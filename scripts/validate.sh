@@ -13,6 +13,22 @@ else
   exit 1
 fi
 
+find_tool() {
+  for candidate in "$@"; do
+    if command -v "$candidate" >/dev/null 2>&1; then
+      command -v "$candidate"
+      return 0
+    fi
+
+    if [ -x "$candidate" ]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
 cd "$repo_root"
 
 "$python_cmd" -m compileall -q app
@@ -24,14 +40,14 @@ cd "$repo_root"
 "$python_cmd" scripts/check-markdown-links.py
 "$python_cmd" scripts/scan-secrets.py
 
-if command -v hadolint >/dev/null 2>&1; then
-  hadolint Dockerfile
+if hadolint_cmd=$(find_tool hadolint hadolint.exe); then
+  "$hadolint_cmd" Dockerfile
 else
   echo "SKIP: hadolint is not installed"
 fi
 
-if command -v kubeconform >/dev/null 2>&1; then
-  kubeconform \
+if kubeconform_cmd=$(find_tool kubeconform "$HOME/go/bin/kubeconform"); then
+  "$kubeconform_cmd" \
     -strict \
     -summary \
     -ignore-missing-schemas \
