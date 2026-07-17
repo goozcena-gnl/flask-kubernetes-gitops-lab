@@ -4,19 +4,19 @@
 
 ```mermaid
 flowchart LR
-    DEV[Developer change] --> GIT[Git repository]
-    GIT --> CI[GitLab CI validation]
-    CI --> BUILD[Buildah image build]
-    BUILD --> REG[OCI registry\nimmutable commit tag]
-    REG --> PR[Manifest image update\nreviewed in Git]
-    PR --> GITOPS[Git desired state]
-    GITOPS --> ARGO[Argo CD reconciliation]
-    ARGO --> K8S[Kubernetes]
-    K8S --> ING[ingress-nginx]
-    ING --> APP[Flask application]
+    DEV[Developer change] --> GITHUB[GitHub protected main]
+    GITHUB --> GITLAB[GitLab CI mirror]
+    GITLAB --> BUILD[Buildah image build]
+    BUILD --> REG[GitLab Container Registry\nimmutable SHA tag]
+    REG --> PROMOTE[Reviewed image promotion]
+    PROMOTE --> GITHUB
+    GITHUB --> ARGO[Argo CD reconciliation]
+    ARGO --> MINI[Minikube Kubernetes]
+    MINI --> TRAEFIK[Traefik OSS]
+    TRAEFIK --> APP[Flask application]
 ```
 
-GitLab CI does not receive a kubeconfig and does not call `kubectl`. This prevents the earlier direct-deployment mechanism from competing with Argo CD. After an image is published, `scripts/set-image.py` updates the image reference. The resulting change is reviewed and merged before Argo CD reconciles it.
+GitLab CI does not receive a kubeconfig and does not call `kubectl`. GitHub `main` is the canonical Git history; the GitLab repository serves as a CI and registry mirror. After an image is published, `scripts/set-image.py` updates the image reference in the Kustomize overlay. The resulting change is reviewed and merged on GitHub before Argo CD reconciles it against `deploy/kubernetes/overlays/minikube`.
 
 ## Runtime design
 

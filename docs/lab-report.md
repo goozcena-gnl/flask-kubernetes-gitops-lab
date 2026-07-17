@@ -36,17 +36,22 @@ The active pipeline has three stages: `validate`, `build`, and `publish`. It run
 
 ### Argo CD
 
-The Argo CD Application watches `deploy/kubernetes/base` and performs automated prune and self-heal. The former direct `kubectl` deployment was removed. Updating the image in Git is a separate, reviewable action:
+The Argo CD Application watches `deploy/kubernetes/overlays/minikube` and performs automated prune and self-heal. The former direct `kubectl` deployment was removed. Updating the image in Git is a separate, reviewable action:
 
 ```bash
-python scripts/set-image.py registry.example.com/team/flask-k8s-lab:<commit-sha>
-git add deploy/kubernetes/base/deployment.yaml
-git commit -m "deploy: promote flask image <commit-sha>"
+python scripts/set-image.py registry.gitlab.com/goozcena-gnl/test-lab@sha256:<DIGEST>
+git add deploy/kubernetes/overlays/minikube/kustomization.yaml
+git commit -m "deploy: promote flask image <sha>"
 ```
+
+### End-to-end runtime validation
+
+Docker, Buildah, Helm, kubeconform, Hadolint, GitLab CI Lint, Minikube, Traefik, and Argo CD were all exercised. The Argo CD Application was validated for sync state, automated self-heal, and automated prune against a live Minikube cluster.
+
+See [Minikube, Traefik, and Argo CD E2E validation](minikube-argocd-e2e.md) for the complete execution record.
 
 ## Limitations
 
-- GitLab, Argo CD, and ingress-nginx values are portable starting points, not production sizing guidance.
+- GitLab, Argo CD, and Traefik values are portable starting points, not production sizing guidance.
 - Chart versions must be selected and pinned by the operator at installation time.
-- DNS, LoadBalancer support, TLS issuance, registry access, and a default storage class depend on the target cluster.
-- The current environment did not provide Docker, Kubernetes, Helm, or GitLab CI lint services; those validations must be performed where the tools and cluster are available.
+- DNS, TLS issuance, registry access, and a default storage class depend on the target cluster.

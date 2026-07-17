@@ -23,9 +23,13 @@ Validation was executed against the cleaned working tree with Python 3.13.5; the
 | PASS | Merged repository state | `git status -sb && git log -1 --oneline` | `main` is synchronized with `origin/main`; squash commit `55f3a54` contains the sanitized import. |
 | PASS | Docker image build | `docker build -t flask-k8s-lab:pr-1 .` | The image was built from the pull-request working tree. |
 | NOT RUN | Gitleaks or TruffleHog | `gitleaks detect` / `trufflehog filesystem` | Neither scanner is installed; the fallback scanner ran instead. |
-| BLOCKED | kubectl client dry-run | `kubectl apply --dry-run=client -k deploy/kubernetes/base` | No reachable Kubernetes API server. |
-| NOT RUN | Hadolint | `hadolint Dockerfile` | Binary not installed. |
+| PASS | kubectl client dry-run | `kubectl apply --dry-run=client -k deploy/kubernetes/base` | The manifests were accepted against the reachable Minikube Kubernetes API. |
+| PASS | Hadolint | `hadolint Dockerfile` | The hardened Dockerfile passed linting. |
 | PASS | Container smoke test | Read-only `docker run` with `/tmp` mounted as `tmpfs`, followed by endpoint checks | `/`, `/healthz`, and `/readyz` responded successfully; Docker reported the container as `healthy`. |
-| NOT RUN | kubeconform | `kubeconform ...` | Binary not installed. |
-| NOT RUN | Helm rendering | `helm template ...` | Helm and chart archives are not installed. |
-| NOT RUN | GitLab CI Lint API | GitLab CI lint service | No target GitLab service or lint API credential was provided. |
+| PASS | kubeconform | Strict validation against Kubernetes `1.35.1` | Base, Minikube overlay, and rendered Traefik resources validated. |
+| PASS | Helm rendering | `helm template traefik ... --version 40.2.0` | Six Traefik resources rendered and validated. |
+| PASS | GitLab CI Lint API | Project-scoped CI Lint request | Configuration valid with `validate`, `build_image`, and `publish_image`. |
+| PASS | Minikube runtime | `minikube status --profile flask-gitops` | Control plane, kubelet, and API server running on Kubernetes `v1.35.1`. |
+| PASS | Argo CD reconciliation | Application status `flask-k8s-lab-minikube` | Application reached `Synced / Healthy` against `deploy/kubernetes/overlays/minikube`. |
+| PASS | Argo CD self-heal | Manual Deployment replica drift | Argo CD restored replicas from one to two within one reconciliation cycle. |
+| PASS | Argo CD prune | Git-managed ConfigMap add/remove sequence | Argo CD deleted the resource after its manifest was removed from Git. |
