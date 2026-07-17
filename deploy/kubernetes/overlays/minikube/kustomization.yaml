@@ -3,6 +3,7 @@ kind: Kustomization
 
 resources:
   - ../../base
+  - prune-probe.yaml
 
 images:
   - name: registry.example.com/devops/flask-k8s-lab
