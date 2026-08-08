@@ -40,6 +40,7 @@ The Argo CD Application watches `deploy/kubernetes/overlays/minikube` and perfor
 
 ```bash
 python scripts/set-image.py registry.gitlab.com/goozcena-gnl/test-lab@sha256:<DIGEST>
+python scripts/check-rendered-image.py
 git add deploy/kubernetes/overlays/minikube/kustomization.yaml
 git commit -m "deploy: promote flask image <sha>"
 ```
@@ -50,8 +51,11 @@ Docker, Buildah, Helm, kubeconform, Hadolint, GitLab CI Lint, Minikube, Traefik,
 
 See [Minikube, Traefik, and Argo CD E2E validation](minikube-argocd-e2e.md) for the complete execution record.
 
+A separate [local image workflow](local-image-workflow.md) provides a reproducible single-node Minikube path without private registry credentials. It is a documented alternative, not evidence that the historical E2E run used a local image.
+
 ## Limitations
 
 - GitLab, Argo CD, and Traefik values are portable starting points, not production sizing guidance.
 - Chart versions must be selected and pinned by the operator at installation time.
 - DNS, TLS issuance, registry access, and a default storage class depend on the target cluster.
+
