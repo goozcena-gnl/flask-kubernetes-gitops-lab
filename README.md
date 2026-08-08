@@ -37,7 +37,7 @@ See [the architecture document](docs/architecture.md) for the delivery diagram a
 
 For local application checks: Python 3.12 and `pip`.
 
-For the complete local GitOps lab:
+For the private-registry GitOps path:
 
 - Docker;
 - Minikube;
@@ -46,6 +46,8 @@ For the complete local GitOps lab:
 - Traefik OSS;
 - Argo CD;
 - access to the private GitLab Container Registry.
+
+The [local image workflow](docs/local-image-workflow.md) removes the registry requirement for a single-node Minikube demonstration.
 
 ## Local application test
 
@@ -74,16 +76,19 @@ docker build --build-arg PYTHON_IMAGE='python:3.12.13-alpine3.22@sha256:<APPROVE
 
 ## Kubernetes deployment
 
-Set an image that the cluster can pull, then apply the base:
+Promote an image through the Minikube overlay, verify the rendered reference, then apply the overlay:
 
 ```bash
 python scripts/set-image.py registry.example.com/team/flask-k8s-lab:<commit-sha>
-kubectl apply -k deploy/kubernetes/base
+python scripts/check-rendered-image.py
+kubectl apply -k deploy/kubernetes/overlays/minikube
 kubectl -n flask-k8s-lab rollout status deployment/flask-k8s-lab
 kubectl -n flask-k8s-lab port-forward service/flask-k8s-lab 8080:80
 ```
 
 The Ingress host is the documentation-only domain `flask-k8s-lab.example.test`. Replace it for the target environment. TLS is intentionally not embedded; use cert-manager or create the TLS Secret outside Git.
+
+For a path that does not require registry credentials, build and load `flask-k8s-lab:local` into Minikube and use `deploy/kubernetes/overlays/minikube-local` as documented in [the local image workflow](docs/local-image-workflow.md).
 
 The application is stateless. The optional PVC exercise is applied only when explicitly selected:
 
@@ -199,7 +204,9 @@ Optional checks run when `hadolint`, `kubeconform`, and `kubectl` are available.
 - [Canonical lab report](docs/lab-report.md)
 - [Validation report](docs/validation-report.md)
 - [Minikube, Traefik, and Argo CD E2E validation](docs/minikube-argocd-e2e.md)
+- [Local image workflow without a private registry](docs/local-image-workflow.md)
 
 ## Limitations
 
 This is a demonstration lab, not a production GitLab or Kubernetes platform. DNS, TLS, registry authentication, storage provisioning, LoadBalancer support, chart compatibility, and resource sizing remain environment-specific. No software license has been selected because ownership and licensing intent were not confirmed.
+

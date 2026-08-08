@@ -16,7 +16,9 @@ flowchart LR
     TRAEFIK --> APP[Flask application]
 ```
 
-GitLab CI does not receive a kubeconfig and does not call `kubectl`. GitHub `main` is the canonical Git history; the GitLab repository serves as a CI and registry mirror. After an image is published, `scripts/set-image.py` updates the image reference in the Kustomize overlay. The resulting change is reviewed and merged on GitHub before Argo CD reconciles it against `deploy/kubernetes/overlays/minikube`.
+GitLab CI does not receive a kubeconfig and does not call `kubectl`. GitHub `main` is the canonical Git history; the GitLab repository serves as a CI and registry mirror. After an image is published, `scripts/set-image.py` updates `newName` plus either `digest` or `newTag` in the Minikube Kustomize overlay. `scripts/check-rendered-image.py` verifies the final Deployment image before the resulting change is reviewed and merged on GitHub. Argo CD then reconciles `deploy/kubernetes/overlays/minikube`.
+
+For a demonstration without private registry credentials, a second overlay points to `flask-k8s-lab:local` and removes the pull Secret. The image is built and loaded directly into the single-node Minikube profile before Argo CD reconciles `deploy/kubernetes/overlays/minikube-local`.
 
 ## Runtime design
 
@@ -27,3 +29,4 @@ The base deployment does not require persistent storage. `deploy/kubernetes/opti
 ## TLS strategy
 
 No generated certificate or private key is stored in Git. The portable base Ingress is HTTP-only. A real environment should add TLS with cert-manager, an external secret manager, or a locally created Kubernetes TLS Secret. Repository certificate trust for Argo CD must likewise be configured out of band.
+

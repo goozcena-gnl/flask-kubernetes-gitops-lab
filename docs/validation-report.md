@@ -17,7 +17,9 @@ Validation was executed against the cleaned working tree with Python 3.13.5; the
 | PASS | Fallback secret scan | `python scripts/scan-secrets.py` | No forbidden credential material found in publishable files. |
 | PASS | Duplicate-content check | SHA-256 comparison of non-empty publishable files | No duplicate content groups. |
 | PASS | Temporary-file check | `find` for editor, backup, and temporary patterns | No unwanted files found. |
-| PASS | Image update helper | `python scripts/set-image.py registry.example.com/devops/flask-k8s-lab:test-sha` on a reversible copy | Exactly one Deployment image field was updated; source restored. |
+| PASS | Image promotion helper | `pytest -q app/tests/test_set_image.py app/tests/test_rendered_image.py` | Tag, digest, registry-port, invalid-input, transformer, and rendered-Deployment cases passed. |
+| PASS | Rendered image contract | `python scripts/check-rendered-image.py` | The Minikube overlay rendered exactly the image declared by its Kustomize transformer. |
+| PASS | Local image overlay | `python scripts/check-rendered-image.py --overlay deploy/kubernetes/overlays/minikube-local` | The no-registry overlay rendered `flask-k8s-lab:local` without the pull Secret. |
 | PASS | Exact Git index secret scan | Custom scanner over `git show :<path>` for every indexed file | 38 files in the final Git index snapshot checked; no credential material found. |
 | PASS | Pre-merge branch history secret scan | Fallback scanner over the feature-branch commit snapshots before squash merge | All scoped snapshots were checked; no forbidden credential material was found. |
 | PASS | Merged repository state | `git status -sb && git log -1 --oneline` | `main` is synchronized with `origin/main`; squash commit `55f3a54` contains the sanitized import. |
@@ -33,3 +35,4 @@ Validation was executed against the cleaned working tree with Python 3.13.5; the
 | PASS | Argo CD reconciliation | Application status `flask-k8s-lab-minikube` | Application reached `Synced / Healthy` against `deploy/kubernetes/overlays/minikube`. |
 | PASS | Argo CD self-heal | Manual Deployment replica drift | Argo CD restored replicas from one to two within one reconciliation cycle. |
 | PASS | Argo CD prune | Git-managed ConfigMap add/remove sequence | Argo CD deleted the resource after its manifest was removed from Git. |
+

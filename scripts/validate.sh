@@ -58,7 +58,12 @@ fi
 
 if command -v kubectl >/dev/null 2>&1; then
   kubectl kustomize deploy/kubernetes/base >/dev/null
-  echo "PASS: kubectl kustomize"
+  kubectl kustomize deploy/kubernetes/overlays/minikube >/dev/null
+  kubectl kustomize deploy/kubernetes/overlays/minikube-local >/dev/null
+  "$python_cmd" scripts/check-rendered-image.py
+  "$python_cmd" scripts/check-rendered-image.py \
+    --overlay deploy/kubernetes/overlays/minikube-local
+  echo "PASS: kubectl kustomize base and overlays"
 
   if kubectl cluster-info --request-timeout=3s >/dev/null 2>&1; then
     kubectl apply \
@@ -72,3 +77,4 @@ if command -v kubectl >/dev/null 2>&1; then
 else
   echo "SKIP: kubectl is not installed"
 fi
+
