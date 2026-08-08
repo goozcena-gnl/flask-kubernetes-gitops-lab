@@ -47,4 +47,3 @@ def test_extracts_application_image_from_deployment():
 def test_rejects_ambiguous_image_transformer():
     with pytest.raises(ValueError):
         CHECK.expected_image({"images": []})
-

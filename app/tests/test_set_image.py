@@ -50,4 +50,3 @@ def test_updates_tag_and_supports_registry_port():
 def test_rejects_ambiguous_or_invalid_references(reference):
     with pytest.raises(ValueError):
         SET_IMAGE.update_kustomization(KUSTOMIZATION, reference)
-
