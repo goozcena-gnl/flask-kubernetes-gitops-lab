@@ -4,6 +4,7 @@
 
 [![Validation](https://github.com/goozcena-gnl/flask-kubernetes-gitops-lab/actions/workflows/validate.yml/badge.svg?branch=main)](https://github.com/goozcena-gnl/flask-kubernetes-gitops-lab/actions/workflows/validate.yml)
 [![Release](https://img.shields.io/github/v/release/goozcena-gnl/flask-kubernetes-gitops-lab?display_name=tag&sort=semver)](https://github.com/goozcena-gnl/flask-kubernetes-gitops-lab/releases/latest)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Validated on Minikube with Traefik: private-registry image pull by digest, Argo CD `Synced`/`Healthy` state, `/`, `/healthz`, and `/readyz` responses, drift self-heal, and resource pruning all passed.
 
@@ -213,6 +214,11 @@ Optional checks run when `hadolint`, `kubeconform`, and `kubectl` are available.
 - [Validation report](docs/validation-report.md)
 - [Minikube, Traefik, and Argo CD E2E validation](docs/minikube-argocd-e2e.md)
 
+## License
+
+Original project content is licensed under the [MIT License](LICENSE).
+Third-party dependencies remain subject to their own licenses.
+
 ## Limitations
 
-This is a demonstration lab, not a production GitLab or Kubernetes platform. DNS, TLS, registry authentication, storage provisioning, LoadBalancer support, chart compatibility, and resource sizing remain environment-specific. No software license has been selected because ownership and licensing intent were not confirmed.
+This is a demonstration lab, not a production GitLab or Kubernetes platform. DNS, TLS, registry authentication, storage provisioning, LoadBalancer support, chart compatibility, and resource sizing remain environment-specific.
