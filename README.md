@@ -14,7 +14,12 @@ GitLab CI validates the application, builds it with Buildah, and publishes a ful
 
 GitLab CI validates the source, builds an OCI image, and publishes an immutable tag based on the full commit SHA. Kubernetes desired state remains in Git. Argo CD is the only deployment controller; the pipeline does not hold a kubeconfig or call `kubectl`.
 
-See [the architecture document](docs/architecture.md) for the delivery diagram and runtime design.
+Before installation, use this technical review path:
+
+- [decision and trade-off synthesis](docs/architecture.md#decision-and-trade-off-synthesis);
+- [security decisions](docs/security-decisions.md);
+- [validated Minikube evidence](docs/minikube-argocd-e2e.md);
+- [explicit limitations](#limitations).
 
 <p align="center">
   <img src="docs/assets/portfolio/gitops-delivery-evidence.svg" alt="GitLab CI validates and builds an immutable OCI image, while a reviewed Git desired-state change is reconciled separately by Argo CD to Kubernetes" width="100%" />
@@ -22,7 +27,7 @@ See [the architecture document](docs/architecture.md) for the delivery diagram a
 
 <p align="center"><sub><strong>Architecture + retained validation boundary.</strong> CI ends at the registry; it has no kubeconfig and does not deploy. The reviewed Git state crosses the cluster trust boundary through Argo CD.</sub></p>
 
-## Demonstrated skills
+## Capabilities
 
 - Python endpoint testing and linting;
 - deterministic multi-stage container builds and non-root runtime design;
@@ -138,11 +143,8 @@ python scripts/set-image.py "$REGISTRY_HOST/$REGISTRY_NAMESPACE/$CI_PROJECT_PATH
 
 1. Install Argo CD with an explicitly pinned chart version and adapt `deploy/helm-values/argocd.yaml`.
 2. For a private repository, copy `deploy/argocd/repository-secret.example.yaml` outside the repository, replace every placeholder, apply it locally, and delete the working copy.
-3. Apply the Minikube Application:
-
-```bash
-kubectl apply -f deploy/argocd/application-minikube.yaml
-```
+3. Select the Application manifest for the target environment. The validated
+   Minikube command is kept once in the next section.
 
 Argo CD watches `deploy/kubernetes/overlays/minikube`, creates the namespace, prunes removed resources, and self-heals drift.
 

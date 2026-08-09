@@ -1,5 +1,9 @@
 # Security decisions
 
+See the architecture
+[decision and trade-off synthesis](architecture.md#decision-and-trade-off-synthesis)
+for the delivery responsibility split, evidence boundary, and production gaps.
+
 ## Source sanitisation
 
 The imported archive contained private keys, kubeconfig material, local environment files, an Argo CD repository credential manifest, certificates tied to the former environment, public or internal endpoints, and screenshots containing account or infrastructure metadata. These assets were excluded from the publishable repository.
