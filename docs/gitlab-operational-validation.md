@@ -77,10 +77,10 @@ not retained.
 ## Public evidence boundary
 
 The GitLab project and Container Registry were private at the time of this
-public-portfolio review. Anonymous project lookup was unavailable, so the
+public evidence review. Anonymous project lookup was unavailable, so the
 pipeline and registry cannot be offered as durable public links. The table
 retains only sanitized identifiers and recorded outcomes; it does not claim
-that a recruiter can independently inspect the private GitLab jobs.
+that a public reviewer can independently inspect the private GitLab jobs.
 
 The repository digest in the later
 [`Minikube, Traefik, and Argo CD E2E validation`](minikube-argocd-e2e.md)
