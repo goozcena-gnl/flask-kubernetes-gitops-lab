@@ -15,6 +15,12 @@ GitLab CI validates the source, builds an OCI image, and publishes an immutable 
 
 See [the architecture document](docs/architecture.md) for the delivery diagram and runtime design.
 
+<p align="center">
+  <img src="docs/assets/portfolio/gitops-delivery-evidence.svg" alt="GitLab CI validates and builds an immutable OCI image, while a reviewed Git desired-state change is reconciled separately by Argo CD to Kubernetes" width="100%" />
+</p>
+
+<p align="center"><sub><strong>Architecture + retained validation boundary.</strong> CI ends at the registry; it has no kubeconfig and does not deploy. The reviewed Git state crosses the cluster trust boundary through Argo CD.</sub></p>
+
 ## Demonstrated skills
 
 - Python endpoint testing and linting;
