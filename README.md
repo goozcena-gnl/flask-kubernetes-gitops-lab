@@ -1,6 +1,13 @@
 # Flask Kubernetes GitOps Lab
 
-A portfolio lab demonstrating a hardened Flask container, GitLab CI image delivery with Buildah, Kubernetes workload security, Traefik OSS ingress, Minikube, and Argo CD reconciliation.
+> A hardened Flask workload delivered as an immutable OCI image by GitLab CI and reconciled to Kubernetes by Argo CD—without giving the build pipeline cluster credentials.
+
+[![Validation](https://github.com/goozcena-gnl/flask-kubernetes-gitops-lab/actions/workflows/validate.yml/badge.svg?branch=main)](https://github.com/goozcena-gnl/flask-kubernetes-gitops-lab/actions/workflows/validate.yml)
+[![Release](https://img.shields.io/github/v/release/goozcena-gnl/flask-kubernetes-gitops-lab?display_name=tag&sort=semver)](https://github.com/goozcena-gnl/flask-kubernetes-gitops-lab/releases/latest)
+
+Validated on Minikube with Traefik: private-registry image pull by digest, Argo CD `Synced`/`Healthy` state, `/`, `/healthz`, and `/readyz` responses, drift self-heal, and resource pruning all passed.
+
+GitLab CI validates the application, builds it with Buildah, and publishes a full-commit-SHA image tag. The pipeline has no deploy stage or kubeconfig; image promotion is reviewed in Git, and Argo CD is the sole cluster reconciler. This is a Minikube application-delivery lab, not a production-readiness claim. See the [E2E validation record](docs/minikube-argocd-e2e.md) and [limitations](#limitations).
 
 ## Architecture
 
