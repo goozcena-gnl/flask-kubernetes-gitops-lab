@@ -1,6 +1,7 @@
 stages:
   - validate
   - build
+  - security
   - publish
 
 workflow:
@@ -16,38 +17,15 @@ variables:
   BUILDAH_FORMAT: oci
   BUILDAH_ISOLATION: chroot
   LOCAL_IMAGE: "localhost/flask-k8s-lab:${CI_COMMIT_SHA}"
+  OCI_LAYOUT: "$CI_PROJECT_DIR/dist/image"
+  OCI_REF: flask-k8s-lab
 
 .default_rules:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     - if: '$CI_COMMIT_BRANCH'
 
-validate:
-  stage: validate
-  image: python:3.12.13-alpine3.22
-  extends: .default_rules
-  cache:
-    key:
-      files:
-        - app/requirements.txt
-        - app/requirements-dev.txt
-    paths:
-      - .cache/pip
-  before_script:
-    - python -m pip install --requirement app/requirements.txt --requirement app/requirements-dev.txt
-  script:
-    - python -m compileall -q app
-    - pytest -q
-    - ruff check .
-    - ruff format --check .
-    - yamllint -c .yamllint.yaml .
-    - python scripts/check-yaml.py
-    - python scripts/check-markdown-links.py
-    - python scripts/scan-secrets.py
-
-build_image:
-  stage: build
-  image: quay.io/buildah/stable:v1.42.1
+.artifact_rules:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       changes:
@@ -55,30 +33,136 @@ build_image:
         - Dockerfile
         - .dockerignore
         - app/**/*
+        - scripts/check-supply-chain.py
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
       changes:
         - .gitlab-ci.yml
         - Dockerfile
         - .dockerignore
         - app/**/*
+        - scripts/check-supply-chain.py
     - when: never
+
+validate:
+  stage: validate
+  image: python:3.12.13-alpine3.23@sha256:efc8538b7449b6d893de5d852c87a0dc2cffd0ec27b07dd98ba3e7edaadc26af
+  extends: .default_rules
+  cache:
+    key:
+      files:
+        - app/requirements.lock
+        - app/requirements-dev.lock
+    paths:
+      - .cache/pip
+  before_script:
+    - >-
+      python -m pip install --only-binary=:all: --require-hashes
+      --requirement app/requirements-dev.lock
+  script:
+    - python scripts/lock-requirements.py --check
+    - python scripts/check-supply-chain.py
+    - python -m compileall -q app scripts
+    - python -m pytest -q
+    - python -m ruff check .
+    - python -m ruff format --check .
+    - python -m yamllint -c .yamllint.yaml .
+    - python scripts/check-yaml.py
+    - python scripts/check-markdown-links.py
+    - python scripts/scan-secrets.py
+
+build_image:
+  stage: build
+  image: quay.io/buildah/stable:v1.43.1@sha256:7bb110e1d8b761d08e87d004ea4086e295a52319f3ea70ecef65da6dff7ceef0
+  extends: .artifact_rules
   script:
     - mkdir -p dist
-    - buildah --storage-driver="$STORAGE_DRIVER" bud --format="$BUILDAH_FORMAT" --layers -t "$LOCAL_IMAGE" .
+    - export SOURCE_DATE_EPOCH=$(date -d "$CI_COMMIT_TIMESTAMP" +%s)
     - |
-      buildah --storage-driver="$STORAGE_DRIVER" push "$LOCAL_IMAGE" \
-        "oci-archive:$CI_PROJECT_DIR/dist/image.oci:$LOCAL_IMAGE"
+      buildah --storage-driver="$STORAGE_DRIVER" bud \
+        --format="$BUILDAH_FORMAT" \
+        --platform=linux/amd64 \
+        --timestamp="$SOURCE_DATE_EPOCH" \
+        --no-cache \
+        --omit-history \
+        -t "$LOCAL_IMAGE" \
+        .
+    - |
+      buildah --storage-driver="$STORAGE_DRIVER" push \
+        --digestfile "$CI_PROJECT_DIR/dist/image-digest.txt" \
+        "$LOCAL_IMAGE" \
+        "oci:$OCI_LAYOUT:$OCI_REF"
+    - grep -Eq '^sha256:[0-9a-f]{64}$' dist/image-digest.txt
+    - |
+      {
+        printf 'SOURCE_COMMIT=%s\n' "$CI_COMMIT_SHA"
+        printf 'SOURCE_DATE_EPOCH=%s\n' "$SOURCE_DATE_EPOCH"
+        printf 'BUILD_PLATFORM=linux/amd64\n'
+        printf 'OCI_MANIFEST_DIGEST=%s\n' "$(cat dist/image-digest.txt)"
+        buildah version
+      } >dist/build-metadata.txt
   artifacts:
     paths:
-      - dist/image.oci
+      - dist/image/
+      - dist/image-digest.txt
+      - dist/build-metadata.txt
     expire_in: 1 day
 
-publish_image:
-  stage: publish
-  image: quay.io/buildah/stable:v1.42.1
+security_scan:
+  stage: security
+  image:
+    name: >-
+      aquasec/trivy:0.73.0@sha256:4bbf3824d974b70f27631005e2e6194d4d8fbd6e72c4a9e04cf521e25c5cb07f
+    entrypoint: [""]
+  extends: .artifact_rules
+  variables:
+    TRIVY_CACHE_DIR: "$CI_PROJECT_DIR/.cache/trivy"
+    TRIVY_NO_PROGRESS: "true"
+  cache:
+    key: trivy-db-v1
+    paths:
+      - .cache/trivy/
   needs:
     - job: build_image
       artifacts: true
+  script:
+    - trivy --version | tee dist/trivy-version.txt
+    - >-
+      trivy image --input "$OCI_LAYOUT:$OCI_REF" --format cyclonedx
+      --output dist/sbom.cdx.json
+    - >-
+      trivy image --input "$OCI_LAYOUT:$OCI_REF" --scanners vuln --format json
+      --output dist/trivy-vulnerabilities.json
+    - test -f "$TRIVY_CACHE_DIR/db/metadata.json"
+    - cp "$TRIVY_CACHE_DIR/db/metadata.json" dist/trivy-db-metadata.json
+    - printf 'SCAN COMPLETED\n'
+    - |
+      trivy image --input "$OCI_LAYOUT:$OCI_REF" \
+        --scanners vuln \
+        --severity HIGH,CRITICAL \
+        --ignore-unfixed \
+        --exit-on-eol 1 \
+        --exit-code 1 \
+        --skip-db-update
+    - printf 'SECURITY POLICY PASSED\n'
+  artifacts:
+    when: always
+    paths:
+      - dist/sbom.cdx.json
+      - dist/trivy-vulnerabilities.json
+      - dist/trivy-db-metadata.json
+      - dist/trivy-version.txt
+      - dist/image-digest.txt
+      - dist/build-metadata.txt
+    expire_in: 30 days
+
+publish_image:
+  stage: publish
+  image: quay.io/buildah/stable:v1.43.1@sha256:7bb110e1d8b761d08e87d004ea4086e295a52319f3ea70ecef65da6dff7ceef0
+  needs:
+    - job: build_image
+      artifacts: true
+    - job: security_scan
+      artifacts: false
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
       changes:
@@ -86,6 +170,7 @@ publish_image:
         - Dockerfile
         - .dockerignore
         - app/**/*
+        - scripts/check-supply-chain.py
     - when: never
   before_script:
     - test -n "$CI_REGISTRY"
@@ -102,27 +187,33 @@ publish_image:
           --password-stdin \
           "$CI_REGISTRY"
   script:
+    - export TARGET_IMAGE="${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}"
+    - >-
+      export PULLED_IMAGE=$(buildah --storage-driver="$STORAGE_DRIVER"
+      pull "oci:$OCI_LAYOUT:$OCI_REF")
+    - buildah --storage-driver="$STORAGE_DRIVER" tag "$PULLED_IMAGE" "$TARGET_IMAGE"
     - |
-      target_image="${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}"
-
-      buildah \
-        --storage-driver="$STORAGE_DRIVER" \
-        pull \
-        "oci-archive:$CI_PROJECT_DIR/dist/image.oci:$LOCAL_IMAGE"
-
-      buildah \
-        --storage-driver="$STORAGE_DRIVER" \
-        tag \
-        "$LOCAL_IMAGE" \
-        "$target_image"
-
-      buildah \
-        --storage-driver="$STORAGE_DRIVER" \
-        push \
+      buildah --storage-driver="$STORAGE_DRIVER" push \
         --authfile "$REGISTRY_AUTH_FILE" \
-        "$target_image" \
-        "docker://$target_image"
-
-      printf 'Published immutable image: %s\n' "$target_image"
+        --digestfile "$CI_PROJECT_DIR/dist/published-digest.txt" \
+        "$TARGET_IMAGE" \
+        "docker://$TARGET_IMAGE"
+    - grep -Eq '^sha256:[0-9a-f]{64}$' dist/published-digest.txt
+    - |
+      published_digest=$(cat dist/published-digest.txt)
+      {
+        printf 'IMAGE_REPOSITORY=%s\n' "$CI_REGISTRY_IMAGE"
+        printf 'IMAGE_TAG=%s\n' "$CI_COMMIT_SHA"
+        printf 'IMAGE_DIGEST=%s\n' "$published_digest"
+        printf 'IMAGE_REFERENCE=%s@%s\n' "$CI_REGISTRY_IMAGE" "$published_digest"
+      } >dist/published-image.env
+    - printf 'Published immutable image and digest evidence for %s\n' "$TARGET_IMAGE"
+  artifacts:
+    paths:
+      - dist/published-digest.txt
+      - dist/published-image.env
+    reports:
+      dotenv: dist/published-image.env
+    expire_in: 30 days
   after_script:
     - rm -rf /tmp/containers-auth
