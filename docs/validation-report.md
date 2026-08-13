@@ -17,7 +17,8 @@ and `NOT VALIDATED` has not been observed on the new branch.
 | VALIDATED | Vulnerability evidence and gate | Database updated at `2026-08-13T13:03:34Z`; full report contained 2 LOW, 8 MEDIUM, 0 HIGH, and 0 CRITICAL findings. Fixable HIGH/CRITICAL count was 0 and the EOL-aware policy passed without exceptions. |
 | VALIDATED | Negative gate | The first Alpine 3.22 artifact was blocked for fixable HIGH CVE-2026-45447; the base was remediated to the reviewed Alpine 3.23 digest and the same gate then passed. |
 | IMPLEMENTED | Publication dependency | Static and unit checks prove `publish_image` needs both the build artifact and successful `security_scan`, and contains no rebuild command. |
-| NOT VALIDATED | GitHub Actions execution | Requires a pushed branch run. |
+| VALIDATED | GitLab CI lint | The signed-in project CI Lint accepted the submitted branch configuration and simulated the default-branch `validate`, `build_image`, `security_scan`, and `publish_image` job graph. |
+| VALIDATED | GitHub Actions execution | PR run `31727912238` passed all repository checks in 31 seconds with no annotations, including the digest-pinned Docker build and read-only smoke test. |
 | NOT VALIDATED | GitLab branch pipeline | Requires a pushed branch to reach the private mirror. |
 | NOT VALIDATED | New registry publication/digest | Publication remains default-branch-only and this feature branch will not be merged automatically. |
 

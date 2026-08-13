@@ -59,9 +59,10 @@ not retained.
 
 | Evidence | Status |
 |---|---|
-| Feature-branch validate job | NOT VALIDATED — branch not pushed yet |
-| Feature-branch Buildah job | NOT VALIDATED — branch not pushed yet |
-| Feature-branch security job | NOT VALIDATED — branch not pushed yet |
+| Project CI Lint/default-branch simulation | VALIDATED — syntax correct; validate, build, security, and publish jobs present |
+| Feature-branch validate job | NOT VALIDATED — branch is not present in the stale GitLab mirror |
+| Feature-branch Buildah job | NOT VALIDATED — branch is not present in the stale GitLab mirror |
+| Feature-branch security job | NOT VALIDATED — branch is not present in the stale GitLab mirror |
 | CycloneDX and vulnerability artifacts | NOT VALIDATED in GitLab |
 | Default-branch publication | NOT VALIDATED — no automatic merge is authorized |
 | New registry digest handoff | NOT VALIDATED |
