@@ -8,7 +8,7 @@
 
 Validated on Minikube with Traefik: private-registry image pull by digest, Argo CD `Synced`/`Healthy` state, `/`, `/healthz`, and `/readyz` responses, drift self-heal, and resource pruning all passed.
 
-GitLab CI validates the application, builds it with Buildah, and publishes a full-commit-SHA image tag. The pipeline has no deploy stage or kubeconfig; image promotion is reviewed in Git, and Argo CD is the sole cluster reconciler. This is a Minikube application-delivery lab, not a production-readiness claim. See the [E2E validation record](docs/minikube-argocd-e2e.md) and [limitations](#limitations).
+GitLab CI validates hash-locked dependencies, builds one OCI artifact with Buildah, scans that artifact, and publishes it only after the security gate. The pipeline has no deploy stage or kubeconfig; image promotion is reviewed in Git, and Argo CD is the sole cluster reconciler. This is a Minikube application-delivery lab, not a production-readiness claim. See the [E2E validation record](docs/minikube-argocd-e2e.md) and [limitations](#limitations).
 
 ## Architecture
 
@@ -30,8 +30,9 @@ Before installation, use this technical review path:
 ## Capabilities
 
 - Python endpoint testing and linting;
+- hash-locked Python dependencies and a digest-pinned base image;
 - deterministic multi-stage container builds and non-root runtime design;
-- Buildah-based GitLab CI with OCI artifacts and protected registry variables;
+- build-once Buildah pipeline with CycloneDX SBOM and Trivy policy gate;
 - Kubernetes Deployment, Service, Ingress, probes, resources, Kustomize, and restricted Pod Security settings;
 - Argo CD automated sync, prune, and self-heal;
 - Helm values for GitLab, Argo CD, Traefik, and Minikube;
@@ -48,7 +49,7 @@ Before installation, use this technical review path:
 │   └── kubernetes/              Base manifests and optional storage overlay
 ├── docs/                        Architecture, security decisions, and canonical report
 ├── scripts/                     Validation, secret scan, and image update helpers
-├── .gitlab-ci.yml               Validate, build, and publish pipeline
+├── .gitlab-ci.yml               Validate, build, security, and publish pipeline
 └── Dockerfile                   Hardened multi-stage image
 ```
 
@@ -71,7 +72,8 @@ For the complete local GitOps lab:
 ```bash
 python -m venv .venv
 . .venv/bin/activate
-python -m pip install -r app/requirements.txt -r app/requirements-dev.txt
+python -m pip install --only-binary=:all: --require-hashes \
+  -r app/requirements-dev.lock
 pytest -q
 python -m flask --app app.app run --host 127.0.0.1 --port 8080
 ```
@@ -85,11 +87,39 @@ docker build -t flask-k8s-lab:local .
 docker run --rm -p 8080:8080 --read-only --tmpfs /tmp flask-k8s-lab:local
 ```
 
-The default build uses `python:3.12.13-alpine3.22`. An approved digest can be supplied without modifying the Dockerfile:
+The build target is explicitly `linux/amd64`. Both Dockerfile stages use the
+reviewed `python:3.12.13-alpine3.23` multi-platform index digest; the selected
+`linux/amd64` manifest is documented in
+[security decisions](docs/security-decisions.md#container). There is no
+tag-only build argument override.
 
 ```bash
-docker build --build-arg PYTHON_IMAGE='python:3.12.13-alpine3.22@sha256:<APPROVED_DIGEST>' .
+docker build --platform linux/amd64 -t flask-k8s-lab:local .
 ```
+
+## Reproducible software-supply-chain flow
+
+```text
+requirements*.in → uv 0.12.3 → hash-verified requirements*.lock
+→ digest-pinned Python base → Buildah → one OCI layout
+→ Trivy → CycloneDX SBOM + complete vulnerability report + policy gate
+→ GitLab registry SHA tag → registry-returned digest
+→ reviewed digest-only Git promotion → Argo CD
+```
+
+`app/requirements.in` and `app/requirements-dev.in` are the human-maintained
+direct inputs. Regenerate both committed locks with the fixed compiler already
+installed by the development lock:
+
+```bash
+python scripts/lock-requirements.py --write
+python scripts/lock-requirements.py --check
+```
+
+The commit-SHA tag records source traceability. The registry digest identifies
+the exact OCI artifact; the two values are useful but not interchangeable.
+Vulnerability results are time-dependent because the Trivy database changes,
+even when the scanned OCI artifact is unchanged.
 
 ## Kubernetes deployment
 
@@ -132,13 +162,14 @@ masked and protected CI/CD variables.
 
 The pipeline stages are:
 
-1. `validate`: syntax, tests, Ruff, YAML, Markdown links, and fallback secret scan;
-2. `build`: Buildah creates an OCI archive;
-3. `publish`: the archive is imported and pushed with `$CI_COMMIT_SHA` as the tag.
+1. `validate`: hash install, lock freshness, tests, lint, YAML, links, and secret scan;
+2. `build`: Buildah creates one persisted OCI layout for `linux/amd64`;
+3. `security`: Trivy creates the CycloneDX SBOM and full JSON report, then blocks fixable `HIGH`/`CRITICAL` findings or an EOL operating system;
+4. `publish`: Buildah imports and pushes that same layout with `$CI_COMMIT_SHA` as the tag, then records the registry digest.
 
-There is no deploy stage and no `KUBECONFIG_B64`. After publication, resolve
-the published artifact to its immutable registry digest outside the helper,
-then record that digest in the reviewed Minikube overlay:
+There is no deploy stage and no `KUBECONFIG_B64`. The sanitized
+`dist/published-image.env` artifact provides the immutable reference. Record
+that reference in the reviewed Minikube overlay:
 
 ```bash
 python scripts/set-image.py \
@@ -225,6 +256,10 @@ Minikube overlay and proves the promoted digest equals the Deployment image.
 Docker build, container smoke testing, Helm rendering, and GitLab CI lint
 require their respective external runtimes or services.
 
+Trivy is not silently treated as passing when unavailable. Developers can
+optionally scan a locally produced OCI layout with the same pinned Trivy image;
+the GitLab security job remains the canonical command definition.
+
 ## Documentation
 
 - [Anonymised project brief](docs/project-brief.md)
@@ -241,4 +276,4 @@ Third-party dependencies remain subject to their own licenses.
 
 ## Limitations
 
-This is a demonstration lab, not a production GitLab or Kubernetes platform. DNS, TLS, registry authentication, storage provisioning, LoadBalancer support, chart compatibility, and resource sizing remain environment-specific.
+This is a demonstration lab, not a production GitLab or Kubernetes platform. DNS, TLS, registry authentication, storage provisioning, LoadBalancer support, chart compatibility, and resource sizing remain environment-specific. This phase does not provide cryptographic image signing, SLSA provenance, admission-time verification, or automated dependency updates.
