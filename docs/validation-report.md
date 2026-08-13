@@ -2,6 +2,12 @@
 
 Validation was executed against the cleaned working tree with Python 3.13.5; the GitLab job is configured for Python 3.12.13. A PASS indicates that the command ran successfully; it is not inferred from file inspection.
 
+This table is historical evidence from the original validation run. It is not
+rewritten to imply that later promotion-contract checks existed then. Current
+repository validation additionally renders both the reusable base and Minikube
+overlay, requires a digest-pinned Minikube promotion, and checks that the
+declared promotion exactly equals the rendered Deployment image.
+
 | Status | Check | Command | Evidence |
 |---|---|---|---|
 | PASS | Python syntax | `python -m compileall -q app` | All application and test modules compiled. |

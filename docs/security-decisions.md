@@ -39,7 +39,16 @@ A digest pin can be supplied through the `PYTHON_IMAGE` build argument when the 
 
 Registry credentials are referenced only through protected, masked GitLab variables. Authentication files are placed under `/tmp` and removed in `after_script`. Images use the full commit SHA as the immutable tag.
 
-The pipeline intentionally has no Kubernetes credentials. Argo CD is the sole deployment controller. The repository credential manifest is an example containing placeholders only and must never be applied without creating a protected local copy.
+The validated Minikube GitOps path promotes the published artifact by an
+immutable `sha256` digest in its Kustomize overlay. The promotion helper accepts
+only a complete digest reference; it neither handles registry credentials nor
+resolves mutable tags. Repository validation proves that this declared digest
+is exactly the image rendered into the target Deployment.
+
+The pipeline intentionally has no Kubernetes credentials. Argo CD is the sole
+deployment controller. The repository credential manifest is an example
+containing placeholders only and must never be applied without creating a
+protected local copy.
 
 ## Required incident action
 
