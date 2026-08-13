@@ -6,6 +6,8 @@ repo_root=$(CDPATH= cd -- "$script_dir/.." && pwd)
 
 if [ -x "$repo_root/.venv/bin/python" ]; then
   python_cmd="$repo_root/.venv/bin/python"
+elif command -v python >/dev/null 2>&1; then
+  python_cmd=$(command -v python)
 elif command -v python3 >/dev/null 2>&1; then
   python_cmd=$(command -v python3)
 else
@@ -29,9 +31,20 @@ find_tool() {
   return 1
 }
 
+render_kustomization() {
+  target=$1
+  if command -v kubectl >/dev/null 2>&1; then
+    kubectl kustomize "$target"
+  elif command -v kustomize >/dev/null 2>&1; then
+    kustomize build "$target"
+  else
+    return 127
+  fi
+}
+
 cd "$repo_root"
 
-"$python_cmd" -m compileall -q app
+"$python_cmd" -m compileall -q app scripts
 "$python_cmd" -m pytest -q
 "$python_cmd" -m ruff check .
 "$python_cmd" -m ruff format --check .
@@ -47,28 +60,42 @@ else
 fi
 
 if kubeconform_cmd=$(find_tool kubeconform "$HOME/go/bin/kubeconform"); then
-  "$kubeconform_cmd" \
-    -strict \
-    -summary \
-    -ignore-missing-schemas \
-    deploy/kubernetes/base/*.yaml
+  if command -v kubectl >/dev/null 2>&1 || command -v kustomize >/dev/null 2>&1; then
+    render_dir=$(mktemp -d)
+    trap 'rm -rf "$render_dir"' EXIT HUP INT TERM
+    render_kustomization deploy/kubernetes/base >"$render_dir/base.yaml"
+    render_kustomization deploy/kubernetes/overlays/minikube >"$render_dir/minikube.yaml"
+    "$kubeconform_cmd" \
+      -strict \
+      -summary \
+      -ignore-missing-schemas \
+      "$render_dir/base.yaml" \
+      "$render_dir/minikube.yaml"
+    rm -rf "$render_dir"
+    trap - EXIT HUP INT TERM
+  else
+    echo "SKIP: kubeconform rendering requires kubectl or kustomize"
+  fi
 else
   echo "SKIP: kubeconform is not installed"
 fi
 
-if command -v kubectl >/dev/null 2>&1; then
-  kubectl kustomize deploy/kubernetes/base >/dev/null
-  echo "PASS: kubectl kustomize"
+if command -v kubectl >/dev/null 2>&1 || command -v kustomize >/dev/null 2>&1; then
+  render_kustomization deploy/kubernetes/base >/dev/null
+  render_kustomization deploy/kubernetes/overlays/minikube >/dev/null
+  "$python_cmd" scripts/check-rendered-image.py
+  echo "PASS: base and Minikube overlay rendering; rendered-image contract"
 
-  if kubectl cluster-info --request-timeout=3s >/dev/null 2>&1; then
+  if command -v kubectl >/dev/null 2>&1 && \
+    kubectl cluster-info --request-timeout=3s >/dev/null 2>&1; then
     kubectl apply \
       --dry-run=client \
       -k deploy/kubernetes/base \
       >/dev/null
     echo "PASS: kubectl client dry-run"
   else
-    echo "SKIP: Kubernetes API server is not reachable; kubectl client dry-run was not run"
+    echo "SKIP: kubectl or a reachable Kubernetes API is unavailable; client dry-run was not run"
   fi
 else
-  echo "SKIP: kubectl is not installed"
+  echo "SKIP: kubectl and kustomize are not installed"
 fi
