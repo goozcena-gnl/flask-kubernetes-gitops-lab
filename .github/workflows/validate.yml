@@ -54,7 +54,9 @@ jobs:
           chmod +x /usr/local/bin/kubeconform
 
       - name: Flask tests
-        run: python -m pytest -q
+        run: |
+          python -m compileall -q app scripts
+          python -m pytest -q
 
       - name: Ruff lint
         run: python -m ruff check .
@@ -100,8 +102,12 @@ jobs:
           curl --fail --silent --show-error http://127.0.0.1:8080/healthz >/dev/null
           curl --fail --silent --show-error http://127.0.0.1:8080/readyz >/dev/null
 
-      - name: Kustomize rendering
-        run: kubectl kustomize deploy/kubernetes/base >/dev/null
+      - name: Kustomize rendering and image contract
+        run: |
+          kubectl kustomize deploy/kubernetes/base > /tmp/base-rendered.yaml
+          kubectl kustomize deploy/kubernetes/overlays/minikube \
+            > /tmp/minikube-rendered.yaml
+          python scripts/check-rendered-image.py
 
       - name: Hadolint
         run: hadolint --failure-threshold error Dockerfile
@@ -113,4 +119,5 @@ jobs:
             -summary \
             -ignore-missing-schemas \
             -kubernetes-version 1.35.1 \
-            deploy/kubernetes/base/*.yaml
+            /tmp/base-rendered.yaml \
+            /tmp/minikube-rendered.yaml

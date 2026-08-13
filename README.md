@@ -93,11 +93,14 @@ docker build --build-arg PYTHON_IMAGE='python:3.12.13-alpine3.22@sha256:<APPROVE
 
 ## Kubernetes deployment
 
-Set an image that the cluster can pull, then apply the base:
+Promote the reviewed registry digest through the Minikube overlay, prove that
+Kustomize renders that exact reference, then apply the overlay:
 
 ```bash
-python scripts/set-image.py registry.example.com/team/flask-k8s-lab:<commit-sha>
-kubectl apply -k deploy/kubernetes/base
+python scripts/set-image.py \
+  registry.example.com/team/flask-k8s-lab@sha256:<64-hex-character-digest>
+python scripts/check-rendered-image.py
+kubectl apply -k deploy/kubernetes/overlays/minikube
 kubectl -n flask-k8s-lab rollout status deployment/flask-k8s-lab
 kubectl -n flask-k8s-lab port-forward service/flask-k8s-lab 8080:80
 ```
@@ -133,11 +136,22 @@ The pipeline stages are:
 2. `build`: Buildah creates an OCI archive;
 3. `publish`: the archive is imported and pushed with `$CI_COMMIT_SHA` as the tag.
 
-There is no deploy stage and no `KUBECONFIG_B64`. After publication, update the Git manifest through a reviewed change:
+There is no deploy stage and no `KUBECONFIG_B64`. After publication, resolve
+the published artifact to its immutable registry digest outside the helper,
+then record that digest in the reviewed Minikube overlay:
 
 ```bash
-python scripts/set-image.py "$REGISTRY_HOST/$REGISTRY_NAMESPACE/$CI_PROJECT_PATH_SLUG:$CI_COMMIT_SHA"
+python scripts/set-image.py \
+  "$REGISTRY_HOST/$REGISTRY_NAMESPACE/$CI_PROJECT_PATH_SLUG@sha256:$IMAGE_DIGEST"
+python scripts/check-rendered-image.py
 ```
+
+The helper never logs in to a registry or resolves a mutable tag. It changes
+exactly the base-image transformation in
+`deploy/kubernetes/overlays/minikube/kustomization.yaml`; the reusable base
+remains environment-neutral. Promotion is: published artifact → immutable
+digest selected in the reviewed overlay → exact rendered-image validation →
+Git merge → Argo CD reconciliation.
 
 ## Argo CD workflow
 
@@ -205,7 +219,11 @@ After installing development dependencies:
 ./scripts/validate.sh
 ```
 
-Optional checks run when `hadolint`, `kubeconform`, and `kubectl` are available. Docker build, container smoke testing, Helm rendering, and GitLab CI lint require their respective external runtimes or services.
+Optional checks run when `hadolint`, `kubeconform`, and `kubectl` are available.
+When a Kustomize renderer is available, validation renders both the base and
+Minikube overlay and proves the promoted digest equals the Deployment image.
+Docker build, container smoke testing, Helm rendering, and GitLab CI lint
+require their respective external runtimes or services.
 
 ## Documentation
 

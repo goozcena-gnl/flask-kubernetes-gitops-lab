@@ -16,7 +16,14 @@ flowchart LR
     TRAEFIK --> APP[Flask application]
 ```
 
-GitLab CI does not receive a kubeconfig and does not call `kubectl`. GitHub `main` is the canonical Git history; the GitLab repository serves as a CI and registry mirror. After an image is published, `scripts/set-image.py` updates the image reference in the Kustomize overlay. The resulting change is reviewed and merged on GitHub before Argo CD reconciles it against `deploy/kubernetes/overlays/minikube`.
+GitLab CI does not receive a kubeconfig and does not call `kubectl`. GitHub
+`main` is the canonical Git history; the GitLab repository serves as a CI and
+registry mirror. After publication, an immutable digest is selected and
+`scripts/set-image.py` records it in the Minikube overlay's single base-image
+transformation. `scripts/check-rendered-image.py` proves the selected digest is
+byte-for-byte identical to the `application` container image rendered by
+Kustomize. The change is reviewed and merged on GitHub before Argo CD
+reconciles `deploy/kubernetes/overlays/minikube`.
 
 ## Decision and trade-off synthesis
 
@@ -38,9 +45,10 @@ desired state.
 | Argo CD | Sole reconciler of reviewed desired state | Does not build or publish images |
 | Kubernetes | Pull and run the declared workload | Receives no credential from GitLab CI |
 
-The resulting path is GitLab CI → immutable OCI artifact → reviewed Git
-desired state → Argo CD → Kubernetes. Publication and deployment are separate
-control points.
+The resulting path is published artifact → immutable digest selected in the
+reviewed Kustomize overlay → exact rendered-image validation → Git merge →
+Argo CD reconciliation. Publication and deployment are separate control
+points, and the reusable base remains environment-neutral.
 
 ### Key decisions and trade-offs
 
