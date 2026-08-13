@@ -19,12 +19,14 @@ diverge.
 
 - validate
 - build_image
+- security_scan
 - no publication
 
 ### Default branch
 
 - validate
 - build_image
+- security_scan
 - publish_image
 
 ## Expected image
@@ -49,9 +51,31 @@ not retained.
 | Image digest | Record the `sha256:` repository digest |
 | Validation job | Record `PASS` or `FAIL` from the executed job |
 | Buildah build job | Record `PASS` or `FAIL` from the executed job |
+| Security job | Record SBOM, full report, and policy-gate result |
+| OCI artifact digest | Record the build artifact's manifest digest |
 | Registry publication job | Record `PASS`, `FAIL`, or `NOT RUN` |
 
-## Executed validation
+## Reproducible supply-chain phase
+
+| Evidence | Status |
+|---|---|
+| Project CI Lint/default-branch simulation | VALIDATED — syntax correct; validate, build, security, and publish jobs present |
+| Feature-branch validate job | NOT VALIDATED — branch is not present in the stale GitLab mirror |
+| Feature-branch Buildah job | NOT VALIDATED — branch is not present in the stale GitLab mirror |
+| Feature-branch security job | NOT VALIDATED — branch is not present in the stale GitLab mirror |
+| CycloneDX and vulnerability artifacts | NOT VALIDATED in GitLab |
+| Default-branch publication | NOT VALIDATED — no automatic merge is authorized |
+| New registry digest handoff | NOT VALIDATED |
+
+Local execution with the exact pinned Buildah and Trivy job images is recorded
+in the [validation report](validation-report.md). It proves tool and OCI-layout
+compatibility, not GitLab runner or registry behavior.
+
+## Historical executed validation
+
+The following run predates the lock, SBOM, vulnerability-gate, and
+registry-digest handoff controls. It must not be read as validation of the new
+supply-chain path.
 
 | Evidence | Value |
 |---|---|

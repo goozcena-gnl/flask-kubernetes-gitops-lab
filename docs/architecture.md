@@ -6,8 +6,11 @@
 flowchart LR
     DEV[Developer change] --> GITHUB[GitHub protected main]
     GITHUB --> GITLAB[GitLab CI mirror]
-    GITLAB --> BUILD[Buildah image build]
-    BUILD --> REG[GitLab Container Registry\nimmutable SHA tag]
+    GITLAB --> LOCKS[Verify hash locks]
+    LOCKS --> BUILD[Buildah build once]
+    BUILD --> OCI[Persisted OCI layout]
+    OCI --> SEC[Trivy SBOM and gate]
+    SEC --> REG[GitLab registry\nSHA tag and digest]
     REG --> PROMOTE[Reviewed image promotion]
     PROMOTE --> GITHUB
     GITHUB --> ARGO[Argo CD reconciliation]
@@ -39,7 +42,7 @@ desired state.
 | Boundary | Responsibility | Explicit exclusion |
 |---|---|---|
 | GitHub protected `main` | Canonical source and reviewed desired state | Does not store runtime credentials |
-| GitLab CI | Test, build with Buildah, and publish the full-commit-SHA OCI artifact | No deploy stage, kubeconfig, or cluster credentials |
+| GitLab CI | Verify locks, build once with Buildah, scan the persisted OCI layout, publish the same artifact, and record its registry digest | No deploy stage, kubeconfig, or cluster credentials |
 | Container registry | Store the published artifact for later pull | Does not decide promotion |
 | Reviewed Git change | Select the image reference for the target environment | Does not mutate the cluster directly |
 | Argo CD | Sole reconciler of reviewed desired state | Does not build or publish images |
@@ -55,6 +58,15 @@ points, and the reusable base remains environment-neutral.
 - A full commit SHA makes the CI artifact traceable to source. The validated
   Minikube desired state uses a digest, making the pulled image bytes explicit;
   resolving and reviewing that reference adds a deliberate promotion step.
+- Python inputs and generated locks are separate. Every locked distribution is
+  exactly pinned and SHA-256 hashed, while the lock compiler itself is fixed at
+  `uv 0.12.3`.
+- Buildah exports one `linux/amd64` OCI layout. Trivy generates the CycloneDX
+  SBOM and vulnerability evidence from that layout, and publication imports the
+  same layout instead of rebuilding it.
+- The security gate blocks fixable `HIGH` or `CRITICAL` vulnerabilities and an
+  EOL operating system. Scan results remain time-dependent because the
+  vulnerability database changes independently of the artifact.
 - Keeping Kubernetes credentials out of CI reduces the pipeline's privilege,
   but a successful build cannot deploy itself. Promotion waits for a reviewed
   Git change and Argo CD reconciliation.
@@ -90,7 +102,8 @@ sanitized and does not provide independently inspectable public job URLs; see
 
 ### Failure boundaries
 
-- A test, Buildah, or publication failure stops before desired state changes.
+- A validation, build, SBOM, scan, gate, or publication failure stops before
+  desired state changes. Publication requires the successful security job.
 - A missing image, registry pull credential, or registry connection prevents
   the workload from becoming Ready; CI does not repair cluster access.
 - An unmerged promotion change cannot reach Argo CD.
@@ -108,10 +121,10 @@ TLS or DNS, portable storage, high availability, or production sizing.
 ### What changes for production
 
 A production design must define and validate the target cluster, registry
-immutability and artifact provenance policy, credential lifecycle, TLS and DNS,
-storage, availability, observability, rollback, and promotion approvals. Those
-controls remain environment decisions; this repository does not claim them as
-implemented.
+immutability, cryptographic signing and provenance policy, admission-time
+verification, credential lifecycle, TLS and DNS, storage, availability,
+observability, rollback, and promotion approvals. Those controls remain
+environment decisions; this repository does not claim them as implemented.
 
 ## Runtime design
 

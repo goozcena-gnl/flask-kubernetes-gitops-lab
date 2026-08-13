@@ -12,15 +12,38 @@ Only two screenshots showing localhost application responses were retained. They
 
 ## Container
 
-- exact Python patch and Alpine minor tag;
+- Python dependency installation uses the complete runtime lock with
+  `--require-hashes` and `--only-binary=:all:`;
+- the Dockerfile 1.7 frontend is pinned by digest;
+- exact Python patch, Alpine minor tag, and reviewed OCI index digest;
 - multi-stage build with runtime-only dependencies;
 - deterministic UID/GID `10001` shared with Kubernetes;
 - no root execution;
 - no package manager or compiler added to the runtime stage;
 - Python-based health check, avoiding an extra `curl` package;
-- `/tmp` is the explicit writable location when the root filesystem is read-only.
+- `/tmp` is the explicit writable location when the root filesystem is read-only;
+- Gunicorn's optional control socket is disabled so it does not attempt to
+  write beneath the non-root user's home on a read-only filesystem.
 
-A digest pin can be supplied through the `PYTHON_IMAGE` build argument when the target platform and approved multi-architecture digest are known. The repository does not claim that an unverified digest is current.
+The approved reference is
+`python:3.12.13-alpine3.23@sha256:601d3d3797e90e2534782e69c85fafb7971b43f24c7b1b079b7e48dd435e458d`.
+This is the multi-platform OCI index digest; the explicit `linux/amd64` target
+selects manifest
+`sha256:efc8538b7449b6d893de5d852c87a0dc2cffd0ec27b07dd98ba3e7edaadc26af`.
+Both were resolved from Docker Hub on 2026-08-13 with:
+
+```bash
+docker buildx imagetools inspect python:3.12.13-alpine3.23
+docker buildx imagetools inspect python:3.12.13-alpine3.23 \
+  --format '{{json .Manifest}}'
+```
+
+The initially requested Alpine 3.22 pin was tested and its OCI artifact was
+blocked by the policy gate because OpenSSL contained fixable HIGH
+CVE-2026-45447. Moving only the base component to Alpine 3.23 removed the
+blocking finding; no exception or suppression was added. The Dockerfile has no
+base-image build argument, so CI cannot silently replace the approved digest
+with a tag-only reference.
 
 ## Kubernetes
 
@@ -38,6 +61,20 @@ A digest pin can be supplied through the `PYTHON_IMAGE` build argument when the 
 ## CI/CD and GitOps
 
 Registry credentials are referenced only through protected, masked GitLab variables. Authentication files are placed under `/tmp` and removed in `after_script`. Images use the full commit SHA as the immutable tag.
+
+GitHub Actions are pinned by full commit SHA and run on Node 24-compatible
+releases. Hadolint and kubeconform are downloaded at fixed versions, verified
+against maintained SHA-256 values, and only then installed.
+
+GitLab validation, Buildah, and Trivy images retain readable tags and are also
+pinned by manifest digest. Buildah creates one persisted OCI layout. The
+security job reads that layout without registry credentials, retains a
+CycloneDX SBOM and complete vulnerability JSON, and fails on a fixable
+`HIGH`/`CRITICAL` vulnerability or an EOL OS. The publication job depends on
+that gate, imports the same layout, and uses Buildah's digest file to capture
+the registry-returned digest. Vulnerability evidence is an assessment at a
+specific database timestamp; it is not reproducible in the same sense as the
+immutable OCI artifact.
 
 The validated Minikube GitOps path promotes the published artifact by an
 immutable `sha256` digest in its Kustomize overlay. The promotion helper accepts

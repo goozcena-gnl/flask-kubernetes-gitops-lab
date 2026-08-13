@@ -1,4 +1,7 @@
+-r requirements.in
+
 PyYAML==6.0.3
 pytest==9.1.1
 ruff==0.15.21
+uv==0.12.3
 yamllint==1.38.0
