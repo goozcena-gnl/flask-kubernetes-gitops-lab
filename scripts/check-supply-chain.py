@@ -10,8 +10,8 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 APPROVED_BASE_IMAGE = (
-    "python:3.12.13-alpine3.23@"
-    "sha256:601d3d3797e90e2534782e69c85fafb7971b43f24c7b1b079b7e48dd435e458d"
+    "python:3.12.14-alpine3.23@"
+    "sha256:31a768b01976652c222e318fe5bd6e7c252f056cbf489c88fa256f1bf0af58e3"
 )
 APPROVED_DOCKERFILE_FRONTEND = (
     "# syntax=docker/dockerfile:1.7@"
@@ -86,9 +86,22 @@ def validate_gitlab(data: object, text: str) -> None:
         raise ValueError("security_scan must consume the build_image artifact")
     if _needs(data["publish_image"]) != {"build_image", "security_scan"}:
         raise ValueError("publish_image must require both build_image and security_scan")
+    workflow_rules = data.get("workflow", {}).get("rules", [])
+    open_merge_request_guards = [
+        rule
+        for rule in workflow_rules
+        if isinstance(rule, dict) and "CI_OPEN_MERGE_REQUESTS" in rule.get("if", "")
+    ]
+    if len(open_merge_request_guards) != 1 or open_merge_request_guards[0].get("when") != "never":
+        raise ValueError("GitLab workflow must suppress duplicate branch pipelines for open MRs")
+    build_script = "\n".join(data["build_image"].get("script") or [])
+    if "export SOURCE_DATE_EPOCH" in build_script and "--timestamp" in build_script:
+        raise ValueError("Buildah must not receive SOURCE_DATE_EPOCH and --timestamp together")
     publish_script = "\n".join(data["publish_image"].get("script") or [])
     if "buildah bud" in publish_script or "--digestfile" not in publish_script:
         raise ValueError("publication must not rebuild and must capture Buildah's registry digest")
+    if "cmp -s dist/image-digest.txt dist/published-digest.txt" not in publish_script:
+        raise ValueError("publication must verify the registry digest matches the scanned artifact")
     security_script = "\n".join(data["security_scan"].get("script") or [])
     security_terms = (
         "--format cyclonedx",
@@ -97,6 +110,10 @@ def validate_gitlab(data: object, text: str) -> None:
         "--severity HIGH,CRITICAL",
         "--exit-code 1",
         "--exit-on-eol 1",
+        "trivy sbom",
+        '"bomFormat"',
+        '"flask"',
+        '"gunicorn"',
         "SCAN COMPLETED",
         "SECURITY POLICY PASSED",
     )

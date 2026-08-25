@@ -7,8 +7,10 @@ stages:
 workflow:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-    - if: '$CI_PIPELINE_SOURCE == "push"'
     - if: '$CI_PIPELINE_SOURCE == "web"'
+    - if: '$CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS && $CI_PIPELINE_SOURCE == "push"'
+      when: never
+    - if: '$CI_COMMIT_BRANCH'
     - when: never
 
 variables:
@@ -34,7 +36,7 @@ variables:
         - .dockerignore
         - app/**/*
         - scripts/check-supply-chain.py
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_COMMIT_BRANCH'
       changes:
         - .gitlab-ci.yml
         - Dockerfile
@@ -45,7 +47,7 @@ variables:
 
 validate:
   stage: validate
-  image: python:3.12.13-alpine3.23@sha256:efc8538b7449b6d893de5d852c87a0dc2cffd0ec27b07dd98ba3e7edaadc26af
+  image: python:3.12.14-alpine3.23@sha256:3ac63b9557ecf93c27c20e9a7a8c5ebc907d1838634b3f021f6d08eda8c0ec63
   extends: .default_rules
   cache:
     key:
@@ -76,7 +78,7 @@ build_image:
   extends: .artifact_rules
   script:
     - mkdir -p dist
-    - export SOURCE_DATE_EPOCH=$(date -d "$CI_COMMIT_TIMESTAMP" +%s)
+    - SOURCE_DATE_EPOCH=$(date -d "$CI_COMMIT_TIMESTAMP" +%s)
     - |
       buildah --storage-driver="$STORAGE_DRIVER" bud \
         --format="$BUILDAH_FORMAT" \
@@ -129,9 +131,16 @@ security_scan:
     - >-
       trivy image --input "$OCI_LAYOUT:$OCI_REF" --format cyclonedx
       --output dist/sbom.cdx.json
+    - test -s dist/sbom.cdx.json
+    - grep -Eq '"bomFormat"[[:space:]]*:[[:space:]]*"CycloneDX"' dist/sbom.cdx.json
+    - grep -Eqi '"name"[[:space:]]*:[[:space:]]*"flask"' dist/sbom.cdx.json
+    - grep -Eqi '"name"[[:space:]]*:[[:space:]]*"gunicorn"' dist/sbom.cdx.json
     - >-
       trivy image --input "$OCI_LAYOUT:$OCI_REF" --scanners vuln --format json
       --output dist/trivy-vulnerabilities.json
+    - >-
+      trivy sbom dist/sbom.cdx.json --scanners vuln --format json
+      --output /tmp/trivy-sbom-validation.json --skip-db-update
     - test -f "$TRIVY_CACHE_DIR/db/metadata.json"
     - cp "$TRIVY_CACHE_DIR/db/metadata.json" dist/trivy-db-metadata.json
     - printf 'SCAN COMPLETED\n'
@@ -199,6 +208,10 @@ publish_image:
         "$TARGET_IMAGE" \
         "docker://$TARGET_IMAGE"
     - grep -Eq '^sha256:[0-9a-f]{64}$' dist/published-digest.txt
+    - >-
+      cmp -s dist/image-digest.txt dist/published-digest.txt ||
+      { echo 'ERROR: registry manifest digest differs from the validated OCI artifact' >&2;
+      exit 1; }
     - |
       published_digest=$(cat dist/published-digest.txt)
       {

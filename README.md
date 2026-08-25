@@ -88,7 +88,7 @@ docker run --rm -p 8080:8080 --read-only --tmpfs /tmp flask-k8s-lab:local
 ```
 
 The build target is explicitly `linux/amd64`. Both Dockerfile stages use the
-reviewed `python:3.12.13-alpine3.23` multi-platform index digest; the selected
+reviewed `python:3.12.14-alpine3.23` multi-platform index digest; the selected
 `linux/amd64` manifest is documented in
 [security decisions](docs/security-decisions.md#container). There is no
 tag-only build argument override.
@@ -135,7 +135,10 @@ kubectl -n flask-k8s-lab rollout status deployment/flask-k8s-lab
 kubectl -n flask-k8s-lab port-forward service/flask-k8s-lab 8080:80
 ```
 
-The Ingress host is the documentation-only domain `flask-k8s-lab.example.test`. Replace it for the target environment. TLS is intentionally not embedded; use cert-manager or create the TLS Secret outside Git.
+The reusable base uses the documentation-only host
+`flask-k8s-lab.example.test`; the retained Minikube overlay replaces it with
+`flask-k8s-lab.localhost`. TLS is intentionally not embedded; use cert-manager
+or create the TLS Secret outside Git for a real environment.
 
 The application is stateless. The optional PVC exercise is applied only when explicitly selected:
 

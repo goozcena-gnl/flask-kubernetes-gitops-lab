@@ -26,15 +26,15 @@ Only two screenshots showing localhost application responses were retained. They
   write beneath the non-root user's home on a read-only filesystem.
 
 The approved reference is
-`python:3.12.13-alpine3.23@sha256:601d3d3797e90e2534782e69c85fafb7971b43f24c7b1b079b7e48dd435e458d`.
+`python:3.12.14-alpine3.23@sha256:31a768b01976652c222e318fe5bd6e7c252f056cbf489c88fa256f1bf0af58e3`.
 This is the multi-platform OCI index digest; the explicit `linux/amd64` target
 selects manifest
-`sha256:efc8538b7449b6d893de5d852c87a0dc2cffd0ec27b07dd98ba3e7edaadc26af`.
-Both were resolved from Docker Hub on 2026-08-13 with:
+`sha256:3ac63b9557ecf93c27c20e9a7a8c5ebc907d1838634b3f021f6d08eda8c0ec63`.
+Both were resolved from Docker Hub on 2026-08-25 with:
 
 ```bash
-docker buildx imagetools inspect python:3.12.13-alpine3.23
-docker buildx imagetools inspect python:3.12.13-alpine3.23 \
+docker buildx imagetools inspect python:3.12.14-alpine3.23
+docker buildx imagetools inspect python:3.12.14-alpine3.23 \
   --format '{{json .Manifest}}'
 ```
 
