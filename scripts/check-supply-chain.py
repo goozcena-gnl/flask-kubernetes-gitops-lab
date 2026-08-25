@@ -106,6 +106,7 @@ def validate_gitlab(data: object, text: str) -> None:
     security_terms = (
         "--format cyclonedx",
         "trivy-vulnerabilities.json",
+        "test -s dist/trivy-vulnerabilities.json",
         "--ignore-unfixed",
         "--severity HIGH,CRITICAL",
         "--exit-code 1",
@@ -114,6 +115,7 @@ def validate_gitlab(data: object, text: str) -> None:
         '"bomFormat"',
         '"flask"',
         '"gunicorn"',
+        "cat dist/trivy-db-metadata.json",
         "SCAN COMPLETED",
         "SECURITY POLICY PASSED",
     )

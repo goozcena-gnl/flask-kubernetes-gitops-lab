@@ -94,6 +94,7 @@ build_image:
         "$LOCAL_IMAGE" \
         "oci:$OCI_LAYOUT:$OCI_REF"
     - grep -Eq '^sha256:[0-9a-f]{64}$' dist/image-digest.txt
+    - printf 'OCI_MANIFEST_DIGEST=%s\n' "$(cat dist/image-digest.txt)"
     - |
       {
         printf 'SOURCE_COMMIT=%s\n' "$CI_COMMIT_SHA"
@@ -138,11 +139,13 @@ security_scan:
     - >-
       trivy image --input "$OCI_LAYOUT:$OCI_REF" --scanners vuln --format json
       --output dist/trivy-vulnerabilities.json
+    - test -s dist/trivy-vulnerabilities.json
     - >-
       trivy sbom dist/sbom.cdx.json --scanners vuln --format json
       --output /tmp/trivy-sbom-validation.json --skip-db-update
     - test -f "$TRIVY_CACHE_DIR/db/metadata.json"
     - cp "$TRIVY_CACHE_DIR/db/metadata.json" dist/trivy-db-metadata.json
+    - cat dist/trivy-db-metadata.json
     - printf 'SCAN COMPLETED\n'
     - |
       trivy image --input "$OCI_LAYOUT:$OCI_REF" \
