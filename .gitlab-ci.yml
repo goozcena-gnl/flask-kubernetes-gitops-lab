@@ -113,7 +113,7 @@ security_scan:
   stage: security
   image:
     name: >-
-      aquasec/trivy:0.73.0@sha256:4bbf3824d974b70f27631005e2e6194d4d8fbd6e72c4a9e04cf521e25c5cb07f
+      aquasec/trivy:0.74.0@sha256:ee940acbf1f58ebadb42d01434ce4609530bf1b52536afbd1eee66cd7123c5c9
     entrypoint: [""]
   extends: .artifact_rules
   variables:

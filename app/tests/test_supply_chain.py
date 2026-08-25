@@ -63,6 +63,18 @@ def test_publish_requires_successful_security_job():
         SUPPLY_CHAIN.validate_gitlab(broken, text)
 
 
+def test_security_scan_requires_enforcing_gate():
+    text = (ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8")
+    data = yaml.safe_load(text)
+    broken = deepcopy(data)
+    broken["security_scan"]["script"] = [
+        command.replace("--exit-code 1", "--exit-code 0")
+        for command in broken["security_scan"]["script"]
+    ]
+    with pytest.raises(ValueError, match="complete report and gate contract"):
+        SUPPLY_CHAIN.validate_gitlab(broken, text)
+
+
 def test_build_rejects_ambiguous_reproducible_timestamp_controls():
     text = (ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8")
     data = yaml.safe_load(text)
@@ -112,3 +124,6 @@ def test_oci_layout_digest_validates_manifest_blob():
             encoding="utf-8",
         )
         assert OCI_LAYOUT.manifest_digest(layout, "flask-k8s-lab") == (f"sha256:{digest}")
+        (layout / "blobs/sha256" / digest).write_bytes(b"tampered")
+        with pytest.raises(ValueError, match="does not match"):
+            OCI_LAYOUT.manifest_digest(layout, "flask-k8s-lab")
