@@ -1,26 +1,26 @@
 # Validation report
 
-## Reproducible supply-chain phase — 2026-08-13
+## Reproducible supply-chain phase — 2026-08-25
 
-The status boundary is explicit: `IMPLEMENTED` is static repository state,
-`VALIDATED` is an executed check, `HISTORICAL EVIDENCE` predates this phase,
-and `NOT VALIDATED` has not been observed on the new branch.
+The status boundary is explicit: `VERIFIED LOCALLY`, `VERIFIED IN GITHUB
+ACTIONS`, and `VERIFIED IN GITLAB` identify where a check ran;
+`STATICALLY VALIDATED` is repository inspection or a unit contract;
+`HISTORICAL EVIDENCE` predates this phase; and `NOT VERIFIED` did not run.
 
 | Status | Check | Evidence |
 |---|---|---|
-| VALIDATED | Lock compiler and freshness | `uv 0.12.3` regenerated both universal, wheel-only, hash-bearing locks byte-for-byte. |
-| VALIDATED | Lock contents | 2 runtime direct inputs resolve to 10 pinned and hashed universal lock entries; the complete development environment contains 19. |
-| VALIDATED | Hash installation | Docker installed the runtime lock on Python 3.12/Alpine with both `--require-hashes` and `--only-binary=:all:`; the development lock installed with the same controls. |
-| VALIDATED | Base identity | Docker Hub OCI index `sha256:601d3d3797e90e2534782e69c85fafb7971b43f24c7b1b079b7e48dd435e458d` selects linux/amd64 manifest `sha256:efc8538b7449b6d893de5d852c87a0dc2cffd0ec27b07dd98ba3e7edaadc26af`. |
-| VALIDATED | Buildah transport | Buildah 1.43.1 built once for `linux/amd64` and exported an OCI layout with manifest digest `sha256:4f2c75987dfc10193d2c5e9f95817a4d3901efc603f420f38a365bd898934d82`. |
-| VALIDATED | CycloneDX SBOM | Trivy 0.73.0 parsed the OCI layout directly and generated CycloneDX 1.7 JSON with 50 components, including every expected runtime Python package. |
-| VALIDATED | Vulnerability evidence and gate | Database updated at `2026-08-13T13:03:34Z`; full report contained 2 LOW, 8 MEDIUM, 0 HIGH, and 0 CRITICAL findings. Fixable HIGH/CRITICAL count was 0 and the EOL-aware policy passed without exceptions. |
-| VALIDATED | Negative gate | The first Alpine 3.22 artifact was blocked for fixable HIGH CVE-2026-45447; the base was remediated to the reviewed Alpine 3.23 digest and the same gate then passed. |
-| IMPLEMENTED | Publication dependency | Static and unit checks prove `publish_image` needs both the build artifact and successful `security_scan`, and contains no rebuild command. |
-| VALIDATED | GitLab CI lint | The signed-in project CI Lint accepted the submitted branch configuration and simulated the default-branch `validate`, `build_image`, `security_scan`, and `publish_image` job graph. |
-| VALIDATED | GitHub Actions execution | PR run `31727912238` passed all repository checks in 31 seconds with no annotations, including the digest-pinned Docker build and read-only smoke test. |
-| NOT VALIDATED | GitLab branch pipeline | Requires a pushed branch to reach the private mirror. |
-| NOT VALIDATED | New registry publication/digest | Publication remains default-branch-only and this feature branch will not be merged automatically. |
+| VERIFIED LOCALLY / VERIFIED IN GITLAB | Lock compiler and freshness | `uv 0.12.3` reproduced both universal, wheel-only, hash-bearing locks byte-for-byte. Removing a direct input made the check fail with both locks reported stale. |
+| VERIFIED LOCALLY / VERIFIED IN GITLAB | Lock contents | 2 runtime direct inputs resolve to 10 pinned and hashed universal lock entries; the complete development environment contains 19. |
+| VERIFIED LOCALLY / VERIFIED IN GITHUB ACTIONS / VERIFIED IN GITLAB | Hash installation | Clean development and container installs used both `--require-hashes` and `--only-binary=:all:`. A deliberately corrupted Blinker hash was rejected by pip. |
+| VERIFIED LOCALLY / VERIFIED IN GITLAB | Base identity | Docker Hub OCI index `sha256:31a768b01976652c222e318fe5bd6e7c252f056cbf489c88fa256f1bf0af58e3` selects linux/amd64 manifest `sha256:3ac63b9557ecf93c27c20e9a7a8c5ebc907d1838634b3f021f6d08eda8c0ec63`. |
+| VERIFIED IN GITLAB | Buildah transport | Pipeline `2789825156` built one `linux/amd64` OCI layout and recorded manifest digest `sha256:b01a2d69ed40b142fc564cd3707bc40c11212010d716197111159e33aab58628`. |
+| VERIFIED IN GITLAB | CycloneDX SBOM | Trivy 0.74.0 generated non-empty CycloneDX JSON from that OCI layout; `trivy sbom` recognized it as CycloneDX JSON, and component checks found Flask 3.1.3 and Gunicorn 26.0.0. |
+| VERIFIED IN GITLAB | Vulnerability evidence and gate | The retained full JSON report used a DB updated at `2026-08-25T13:00:57Z` and downloaded at `2026-08-25T16:55:04Z`. The EOL-aware, fixable HIGH/CRITICAL gate reported 0 findings for Alpine 3.23.5 and every Python package target, then printed `SECURITY POLICY PASSED`. |
+| VERIFIED LOCALLY / HISTORICAL EVIDENCE | Negative controls | Unit checks reject missing hashes, tag-only bases, a disabled security gate, duplicate branch/MR pipelines, ambiguous Buildah timestamp controls, and a tampered OCI manifest. Earlier empirical evidence records Alpine 3.22 being blocked for fixable HIGH CVE-2026-45447 before the base moved to Alpine 3.23. |
+| STATICALLY VALIDATED | Publication dependency | Static and unit checks prove `publish_image` needs both the exact build artifact and successful `security_scan`, contains no rebuild, captures the registry-returned digest, and fails if it differs from the scanned manifest digest. |
+| VERIFIED IN GITLAB | Merge-request pipeline | Private pipeline `2789825156` passed `validate` (`31` tests), `build_image`, and `security_scan` for commit `35e23c97e38f4a0c3a32734e7b797c2bc45ce264`. One MR pipeline, rather than duplicate branch and MR pipelines, was created for the push. |
+| VERIFIED IN GITHUB ACTIONS | GitHub execution | Workflow run `32876015604` passed tests, lint, YAML, links, secret scan, Docker build, read-only endpoint smoke tests, Kustomize image contract, Hadolint, and kubeconform for commit `35e23c97e38f4a0c3a32734e7b797c2bc45ce264`. |
+| NOT VERIFIED | New registry publication/digest | `publish_image` is default-branch-only and correctly did not exist in the MR pipeline. It must run after reviewed GitHub merge and exact GitLab `main` synchronization; no new registry digest is claimed. |
 
 ## Historical repository and Minikube evidence
 

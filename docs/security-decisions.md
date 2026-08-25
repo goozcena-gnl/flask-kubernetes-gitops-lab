@@ -76,6 +76,12 @@ the registry-returned digest. Vulnerability evidence is an assessment at a
 specific database timestamp; it is not reproducible in the same sense as the
 immutable OCI artifact.
 
+The current scanner is the linux/amd64 manifest
+`aquasec/trivy:0.74.0@sha256:ee940acbf1f58ebadb42d01434ce4609530bf1b52536afbd1eee66cd7123c5c9`,
+resolved on 2026-08-25. GitLab pipeline `2789825156` verified that exact image
+against the retained OCI artifact and a vulnerability database updated the
+same day.
+
 The validated Minikube GitOps path promotes the published artifact by an
 immutable `sha256` digest in its Kustomize overlay. The promotion helper accepts
 only a complete digest reference; it neither handles registry credentials nor

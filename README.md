@@ -168,7 +168,9 @@ The pipeline stages are:
 1. `validate`: hash install, lock freshness, tests, lint, YAML, links, and secret scan;
 2. `build`: Buildah creates one persisted OCI layout for `linux/amd64`;
 3. `security`: Trivy creates the CycloneDX SBOM and full JSON report, then blocks fixable `HIGH`/`CRITICAL` findings or an EOL operating system;
-4. `publish`: Buildah imports and pushes that same layout with `$CI_COMMIT_SHA` as the tag, then records the registry digest.
+4. `publish`: Buildah imports and pushes that same layout with `$CI_COMMIT_SHA`
+   as the tag, then fails unless the registry-returned digest matches the
+   scanned OCI manifest digest.
 
 There is no deploy stage and no `KUBECONFIG_B64`. The sanitized
 `dist/published-image.env` artifact provides the immutable reference. Record
