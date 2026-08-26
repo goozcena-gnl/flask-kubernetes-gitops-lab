@@ -43,7 +43,7 @@ so digest equality is verified. No GitOps promotion was performed.
 | STATICALLY VALIDATED | Publication dependency | Static and unit checks prove `publish_image` needs both the exact build artifact and successful `security_scan`, contains no rebuild, captures the registry-returned digest, and fails if it differs from the scanned manifest digest. |
 | VERIFIED IN GITLAB | Merge-request pipeline | Private pipeline `2789825156` passed `validate` (`31` tests), `build_image`, and `security_scan` for commit `35e23c97e38f4a0c3a32734e7b797c2bc45ce264`. One MR pipeline, rather than duplicate branch and MR pipelines, was created for the push. |
 | VERIFIED IN GITHUB ACTIONS | GitHub execution | Workflow run `32876015604` passed tests, lint, YAML, links, secret scan, Docker build, read-only endpoint smoke tests, Kustomize image contract, Hadolint, and kubeconform for commit `35e23c97e38f4a0c3a32734e7b797c2bc45ce264`. |
-| VERIFIED IN GITLAB | Registry publication and digest equality | Default-branch pipeline `2792252277` imported the retained OCI artifact without rebuilding it and published the immutable commit tag `d477dcfe68837d34cb98c44d95562ea920251b28`. The registry-returned digest exactly matched the built and scanned digest: `sha256:8e5256469386c9aa526f4f6f201ea822b900e098ba5c84d023dd6e6756b006fb`. |
+| VERIFIED IN GITLAB | Registry publication and digest equality | Default-branch pipeline `2792252277` imported the retained OCI artifact without rebuilding it and published its immutable commit tag `d477dcfe68837d34cb98c44d95562ea920251b28`. The registry-returned digest exactly matched the built and scanned digest: `sha256:8e5256469386c9aa526f4f6f201ea822b900e098ba5c84d023dd6e6756b006fb`. |
 
 ## Historical repository and Minikube evidence
 
