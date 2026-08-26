@@ -7,6 +7,29 @@ ACTIONS`, and `VERIFIED IN GITLAB` identify where a check ran;
 `STATICALLY VALIDATED` is repository inspection or a unit contract;
 `HISTORICAL EVIDENCE` predates this phase; and `NOT VERIFIED` did not run.
 
+## Final review and publication — 2026-08-26
+
+The independent final review initially found a reproducibility defect: two
+GitLab pipelines for the same commit produced different OCI digests because
+installed Python bytecode retained build-time timestamps. Commit
+`3030ffbf93bdcbe1c3bb5ec70ca48efe6e61f017` disabled installation-time bytecode
+compilation, removed residual bytecode, and added a regression check. Two
+subsequent MR pipelines (`2792221926` and `2792232096`) produced the same OCI
+digest, `sha256:eaae886e127ccb74a7ef512e3f606b70c0c4f7bc412fda7396a1a1c691431d5c`.
+
+GitHub PR `20` was then squash-merged as
+`d477dcfe68837d34cb98c44d95562ea920251b28`. GitHub post-merge workflow
+`32961976291` passed, and GitLab `main` was fast-forwarded to the exact same
+commit. GitLab default-branch pipeline `2792252277` passed all four jobs:
+`validate` (`16117241873`), `build_image` (`16117241874`), `security_scan`
+(`16117241875`), and `publish_image` (`16117241876`).
+
+The build and scan used OCI manifest digest
+`sha256:8e5256469386c9aa526f4f6f201ea822b900e098ba5c84d023dd6e6756b006fb`.
+The publication artifact records the same registry-returned digest for
+`registry.gitlab.com/goozcena-gnl/test-lab:d477dcfe68837d34cb98c44d95562ea920251b28`,
+so digest equality is verified. No GitOps promotion was performed.
+
 | Status | Check | Evidence |
 |---|---|---|
 | VERIFIED LOCALLY / VERIFIED IN GITLAB | Lock compiler and freshness | `uv 0.12.3` reproduced both universal, wheel-only, hash-bearing locks byte-for-byte. Removing a direct input made the check fail with both locks reported stale. |
@@ -20,7 +43,7 @@ ACTIONS`, and `VERIFIED IN GITLAB` identify where a check ran;
 | STATICALLY VALIDATED | Publication dependency | Static and unit checks prove `publish_image` needs both the exact build artifact and successful `security_scan`, contains no rebuild, captures the registry-returned digest, and fails if it differs from the scanned manifest digest. |
 | VERIFIED IN GITLAB | Merge-request pipeline | Private pipeline `2789825156` passed `validate` (`31` tests), `build_image`, and `security_scan` for commit `35e23c97e38f4a0c3a32734e7b797c2bc45ce264`. One MR pipeline, rather than duplicate branch and MR pipelines, was created for the push. |
 | VERIFIED IN GITHUB ACTIONS | GitHub execution | Workflow run `32876015604` passed tests, lint, YAML, links, secret scan, Docker build, read-only endpoint smoke tests, Kustomize image contract, Hadolint, and kubeconform for commit `35e23c97e38f4a0c3a32734e7b797c2bc45ce264`. |
-| NOT VERIFIED | New registry publication/digest | `publish_image` is default-branch-only and correctly did not exist in the MR pipeline. It must run after reviewed GitHub merge and exact GitLab `main` synchronization; no new registry digest is claimed. |
+| VERIFIED IN GITLAB | Registry publication and digest equality | Default-branch pipeline `2792252277` imported the retained OCI artifact without rebuilding it and published its immutable commit tag `d477dcfe68837d34cb98c44d95562ea920251b28`. The registry-returned digest exactly matched the built and scanned digest: `sha256:8e5256469386c9aa526f4f6f201ea822b900e098ba5c84d023dd6e6756b006fb`. |
 
 ## Historical repository and Minikube evidence
 
