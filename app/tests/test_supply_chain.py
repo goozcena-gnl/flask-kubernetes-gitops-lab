@@ -54,6 +54,14 @@ def test_dockerfile_rejects_tag_only_base():
         )
 
 
+def test_dockerfile_rejects_nondeterministic_installed_bytecode():
+    dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+    with pytest.raises(ValueError, match="nondeterministic bytecode"):
+        SUPPLY_CHAIN.validate_dockerfile(
+            dockerfile.replace("    find /opt/venv -type f -name '*.py[co]' -delete\n", "")
+        )
+
+
 def test_publish_requires_successful_security_job():
     text = (ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8")
     data = yaml.safe_load(text)

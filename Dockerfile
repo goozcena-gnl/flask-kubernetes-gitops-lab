@@ -11,9 +11,11 @@ COPY app/requirements.lock ./requirements.lock
 RUN python -m venv /opt/venv && \
     /opt/venv/bin/pip install \
       --no-cache-dir \
+      --no-compile \
       --only-binary=:all: \
       --require-hashes \
-      --requirement requirements.lock
+      --requirement requirements.lock && \
+    find /opt/venv -type f -name '*.py[co]' -delete
 
 FROM python:3.12.14-alpine3.23@sha256:31a768b01976652c222e318fe5bd6e7c252f056cbf489c88fa256f1bf0af58e3 AS runtime
 

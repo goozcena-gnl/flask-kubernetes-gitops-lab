@@ -13,7 +13,9 @@ Only two screenshots showing localhost application responses were retained. They
 ## Container
 
 - Python dependency installation uses the complete runtime lock with
-  `--require-hashes` and `--only-binary=:all:`;
+  `--require-hashes`, `--only-binary=:all:`, and `--no-compile`; any
+  bytecode created while bootstrapping the virtual environment is removed so
+  wall-clock timestamps cannot change an otherwise identical OCI build;
 - the Dockerfile 1.7 frontend is pinned by digest;
 - exact Python patch, Alpine minor tag, and reviewed OCI index digest;
 - multi-stage build with runtime-only dependencies;

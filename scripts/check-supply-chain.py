@@ -61,9 +61,18 @@ def validate_dockerfile(text: str) -> None:
         raise ValueError("both Dockerfile stages must use the approved digest-pinned Python image")
     if "ARG PYTHON_IMAGE" in text:
         raise ValueError("Dockerfile must not allow a tag-only PYTHON_IMAGE override")
-    required = ("--require-hashes", "--only-binary=:all:", "app/requirements.lock")
+    required = (
+        "--require-hashes",
+        "--only-binary=:all:",
+        "--no-compile",
+        "find /opt/venv -type f -name '*.py[co]' -delete",
+        "app/requirements.lock",
+    )
     if any(item not in text for item in required):
-        raise ValueError("Dockerfile must install the runtime lock with hashes and wheels only")
+        raise ValueError(
+            "Dockerfile must install the runtime lock with hashes and wheels only "
+            "and remove nondeterministic bytecode"
+        )
 
 
 def _needs(job: dict) -> set[str]:
