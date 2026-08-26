@@ -38,6 +38,32 @@ $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
 
 The mutable `latest` tag is intentionally not used.
 
+## Verified default-branch publication — 2026-08-26
+
+GitHub PR `20` was squash-merged only after the repaired feature commit
+`3030ffbf93bdcbe1c3bb5ec70ca48efe6e61f017` passed GitHub Actions and two
+independent GitLab MR pipelines produced the same OCI manifest digest. The
+resulting GitHub commit was then fast-forwarded unchanged to GitLab `main`.
+
+| Evidence | Verified value |
+|---|---|
+| GitHub merge commit | `d477dcfe68837d34cb98c44d95562ea920251b28` |
+| GitHub post-merge workflow | Run `32961976291` passed for the exact merge commit |
+| GitLab default-branch pipeline | Pipeline `2792252277` passed for the exact merge commit |
+| Validation job | Job `16117241873` passed |
+| Build job | Job `16117241874` produced `sha256:8e5256469386c9aa526f4f6f201ea822b900e098ba5c84d023dd6e6756b006fb` |
+| Security job | Job `16117241875` scanned that OCI layout and passed the policy gate with 0 fixable HIGH/CRITICAL findings |
+| Publication job | Job `16117241876` passed after importing the retained OCI artifact; it did not rebuild the image |
+| Immutable tag | `registry.gitlab.com/goozcena-gnl/test-lab:d477dcfe68837d34cb98c44d95562ea920251b28` |
+| Published registry digest | `sha256:8e5256469386c9aa526f4f6f201ea822b900e098ba5c84d023dd6e6756b006fb` |
+| Immutable digest reference | `registry.gitlab.com/goozcena-gnl/test-lab@sha256:8e5256469386c9aa526f4f6f201ea822b900e098ba5c84d023dd6e6756b006fb` |
+| Digest equality | VERIFIED — the build/scanned OCI digest and registry-returned digest are byte-for-byte equal |
+
+The publication job's retained `published-image.env` artifact independently
+records the repository, immutable commit tag, registry-returned digest, and
+digest reference above. No GitOps image promotion was performed during this
+validation.
+
 ## Reproducible supply-chain phase — 2026-08-25
 
 The stale branch was caused by the absence of an automatic GitLab repository
@@ -58,11 +84,10 @@ history.
 | Default-branch publication | NOT VERIFIED — correctly omitted from the MR pipeline by policy |
 | Registry digest equality | STATICALLY VALIDATED — publication compares the registry-returned digest with the scanned OCI manifest; runtime evidence requires the default-branch job |
 
-The exact remaining action is to merge the reviewed GitHub PR, fast-forward the
-resulting GitHub commit to GitLab `main`, and inspect the resulting default-
-branch `publish_image` job. Record the immutable SHA tag, the registry-returned
-digest, and the successful equality check before promoting that digest with
-`scripts/set-image.py`. Do not merge the GitLab MR independently.
+This pre-merge evidence was completed by the verified default-branch
+publication recorded above. The next separately reviewed action is to promote
+the immutable digest with `scripts/set-image.py`; this document does not claim
+that promotion has occurred. The GitLab MR was not merged independently.
 
 ## Historical executed validation
 
