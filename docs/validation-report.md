@@ -1,12 +1,36 @@
 # Validation report
 
-Validation was executed against the cleaned working tree with Python 3.13.5; the GitLab job is configured for Python 3.12.13. A PASS indicates that the command ran successfully; it is not inferred from file inspection.
+## Reproducible supply-chain phase — 2026-08-25
+
+The status boundary is explicit: `VERIFIED LOCALLY`, `VERIFIED IN GITHUB
+ACTIONS`, and `VERIFIED IN GITLAB` identify where a check ran;
+`STATICALLY VALIDATED` is repository inspection or a unit contract;
+`HISTORICAL EVIDENCE` predates this phase; and `NOT VERIFIED` did not run.
+
+| Status | Check | Evidence |
+|---|---|---|
+| VERIFIED LOCALLY / VERIFIED IN GITLAB | Lock compiler and freshness | `uv 0.12.3` reproduced both universal, wheel-only, hash-bearing locks byte-for-byte. Removing a direct input made the check fail with both locks reported stale. |
+| VERIFIED LOCALLY / VERIFIED IN GITLAB | Lock contents | 2 runtime direct inputs resolve to 10 pinned and hashed universal lock entries; the complete development environment contains 19. |
+| VERIFIED LOCALLY / VERIFIED IN GITHUB ACTIONS / VERIFIED IN GITLAB | Hash installation | Clean development and container installs used both `--require-hashes` and `--only-binary=:all:`. A deliberately corrupted Blinker hash was rejected by pip. |
+| VERIFIED LOCALLY / VERIFIED IN GITLAB | Base identity | Docker Hub OCI index `sha256:31a768b01976652c222e318fe5bd6e7c252f056cbf489c88fa256f1bf0af58e3` selects linux/amd64 manifest `sha256:3ac63b9557ecf93c27c20e9a7a8c5ebc907d1838634b3f021f6d08eda8c0ec63`. |
+| VERIFIED IN GITLAB | Buildah transport | Pipeline `2789825156` built one `linux/amd64` OCI layout and recorded manifest digest `sha256:b01a2d69ed40b142fc564cd3707bc40c11212010d716197111159e33aab58628`. |
+| VERIFIED IN GITLAB | CycloneDX SBOM | Trivy 0.74.0 generated non-empty CycloneDX JSON from that OCI layout; `trivy sbom` recognized it as CycloneDX JSON, and component checks found Flask 3.1.3 and Gunicorn 26.0.0. |
+| VERIFIED IN GITLAB | Vulnerability evidence and gate | The retained full JSON report used a DB updated at `2026-08-25T13:00:57Z` and downloaded at `2026-08-25T16:55:04Z`. The EOL-aware, fixable HIGH/CRITICAL gate reported 0 findings for Alpine 3.23.5 and every Python package target, then printed `SECURITY POLICY PASSED`. |
+| VERIFIED LOCALLY / HISTORICAL EVIDENCE | Negative controls | Unit checks reject missing hashes, tag-only bases, a disabled security gate, duplicate branch/MR pipelines, ambiguous Buildah timestamp controls, and a tampered OCI manifest. Earlier empirical evidence records Alpine 3.22 being blocked for fixable HIGH CVE-2026-45447 before the base moved to Alpine 3.23. |
+| STATICALLY VALIDATED | Publication dependency | Static and unit checks prove `publish_image` needs both the exact build artifact and successful `security_scan`, contains no rebuild, captures the registry-returned digest, and fails if it differs from the scanned manifest digest. |
+| VERIFIED IN GITLAB | Merge-request pipeline | Private pipeline `2789825156` passed `validate` (`31` tests), `build_image`, and `security_scan` for commit `35e23c97e38f4a0c3a32734e7b797c2bc45ce264`. One MR pipeline, rather than duplicate branch and MR pipelines, was created for the push. |
+| VERIFIED IN GITHUB ACTIONS | GitHub execution | Workflow run `32876015604` passed tests, lint, YAML, links, secret scan, Docker build, read-only endpoint smoke tests, Kustomize image contract, Hadolint, and kubeconform for commit `35e23c97e38f4a0c3a32734e7b797c2bc45ce264`. |
+| NOT VERIFIED | New registry publication/digest | `publish_image` is default-branch-only and correctly did not exist in the MR pipeline. It must run after reviewed GitHub merge and exact GitLab `main` synchronization; no new registry digest is claimed. |
+
+## Historical repository and Minikube evidence
+
+The original validation was executed against the cleaned working tree with
+Python 3.13.5; the GitLab job was configured for Python 3.12.13. A `PASS` in
+the table below indicates that the command ran successfully; it is not inferred
+from file inspection.
 
 This table is historical evidence from the original validation run. It is not
-rewritten to imply that later promotion-contract checks existed then. Current
-repository validation additionally renders both the reusable base and Minikube
-overlay, requires a digest-pinned Minikube promotion, and checks that the
-declared promotion exactly equals the rendered Deployment image.
+rewritten to imply that later promotion or supply-chain controls existed then.
 
 | Status | Check | Command | Evidence |
 |---|---|---|---|

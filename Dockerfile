@@ -1,19 +1,23 @@
-# syntax=docker/dockerfile:1.7
+# syntax=docker/dockerfile:1.7@sha256:a57df69d0ea827fb7266491f2813635de6f17269be881f696fbfdf2d83dda33e
 
-ARG PYTHON_IMAGE=python:3.12.13-alpine3.22
-
-FROM ${PYTHON_IMAGE} AS builder
+FROM python:3.12.14-alpine3.23@sha256:31a768b01976652c222e318fe5bd6e7c252f056cbf489c88fa256f1bf0af58e3 AS builder
 
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1
 
 WORKDIR /build
-COPY app/requirements.txt ./requirements.txt
+COPY app/requirements.lock ./requirements.lock
 
 RUN python -m venv /opt/venv && \
-    /opt/venv/bin/pip install --no-cache-dir --requirement requirements.txt
+    /opt/venv/bin/pip install \
+      --no-cache-dir \
+      --no-compile \
+      --only-binary=:all: \
+      --require-hashes \
+      --requirement requirements.lock && \
+    find /opt/venv -type f -name '*.py[co]' -delete
 
-FROM ${PYTHON_IMAGE} AS runtime
+FROM python:3.12.14-alpine3.23@sha256:31a768b01976652c222e318fe5bd6e7c252f056cbf489c88fa256f1bf0af58e3 AS runtime
 
 ARG APP_UID=10001
 ARG APP_GID=10001
@@ -27,7 +31,7 @@ RUN addgroup --system --gid "${APP_GID}" app && \
 
 WORKDIR /app
 COPY --from=builder /opt/venv /opt/venv
-COPY --chown=${APP_UID}:${APP_GID} app/ /app/
+COPY --chown=${APP_UID}:${APP_GID} app/__init__.py app/app.py /app/
 
 USER ${APP_UID}:${APP_GID}
 EXPOSE 8080
@@ -35,4 +39,4 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=2).read()"]
 
-CMD ["gunicorn", "--bind=0.0.0.0:8080", "--workers=2", "--threads=4", "--timeout=30", "--worker-tmp-dir=/tmp", "--access-logfile=-", "--error-logfile=-", "app:app"]
+CMD ["gunicorn", "--bind=0.0.0.0:8080", "--workers=2", "--threads=4", "--timeout=30", "--worker-tmp-dir=/tmp", "--no-control-socket", "--access-logfile=-", "--error-logfile=-", "app:app"]

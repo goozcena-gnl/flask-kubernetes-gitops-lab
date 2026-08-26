@@ -44,6 +44,20 @@ render_kustomization() {
 
 cd "$repo_root"
 
+"$python_cmd" -m pip install \
+  --dry-run \
+  --only-binary=:all: \
+  --require-hashes \
+  --requirement app/requirements.lock \
+  >/dev/null
+"$python_cmd" -m pip install \
+  --dry-run \
+  --only-binary=:all: \
+  --require-hashes \
+  --requirement app/requirements-dev.lock \
+  >/dev/null
+"$python_cmd" scripts/lock-requirements.py --check
+"$python_cmd" scripts/check-supply-chain.py
 "$python_cmd" -m compileall -q app scripts
 "$python_cmd" -m pytest -q
 "$python_cmd" -m ruff check .

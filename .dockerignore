@@ -17,3 +17,6 @@ docs
 scripts
 deploy
 app/tests
+app/requirements.in
+app/requirements-dev.in
+app/requirements-dev.lock
