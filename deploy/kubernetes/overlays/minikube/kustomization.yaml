@@ -7,7 +7,7 @@ resources:
 images:
   - name: registry.example.com/devops/flask-k8s-lab
     newName: registry.gitlab.com/goozcena-gnl/test-lab
-    digest: sha256:0c14d7a7ddbb0641b7dfaf78fbaff8ae528dae53b1c7d1f91c9884a5a1469bd4
+    digest: sha256:8e5256469386c9aa526f4f6f201ea822b900e098ba5c84d023dd6e6756b006fb
 
 patches:
   - path: deployment-patch.yaml
