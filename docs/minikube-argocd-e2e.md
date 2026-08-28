@@ -141,3 +141,58 @@ Readiness:
 - The application image is pinned by digest.
 - Registry credentials remain outside Git.
 - Argo CD is the sole Kubernetes deployment reconciler.
+
+## Verified digest promotion — 2026-08-28
+
+GitHub pull request `#22` promoted the already-built and scanned artifact from
+source commit `d477dcfe68837d34cb98c44d95562ea920251b28`. GitLab publication
+pipeline `2792252277` had established equality between the built/scanned digest
+and the registry-returned digest before this GitOps change.
+
+The promotion was merged by guarded squash at:
+
+```text
+3ccc8a46e02491408ac2952ee8310a6a2f11705f
+```
+
+Argo CD automatically observed that exact GitHub `main` revision. No manual
+sync, direct Kustomize apply, Deployment patch, or imperative image change was
+used. The observed health transition was `Progressing` to `Healthy`; an
+`OutOfSync` state was not observed during polling.
+
+| Validation | Result |
+|---|---|
+| Previous digest | `sha256:0c14d7a7ddbb0641b7dfaf78fbaff8ae528dae53b1c7d1f91c9884a5a1469bd4` |
+| Promoted digest | `sha256:8e5256469386c9aa526f4f6f201ea822b900e098ba5c84d023dd6e6756b006fb` |
+| Argo CD revision | `3ccc8a46e02491408ac2952ee8310a6a2f11705f` |
+| Argo CD state | `Synced / Healthy`, operation `Succeeded` |
+| Deployment rollout | `2` desired, updated, ready, and available |
+| Private-registry pull | PASS; Kubernetes recorded a successful pull of the promoted digest |
+| Pod restart counts | `0`, `0` after stabilization |
+| Current promoted-Pod warning events | `0` |
+| Service `/`, `/healthz`, `/readyz` | HTTP `200`, HTTP `200`, HTTP `200` |
+| Traefik `/`, `/healthz`, `/readyz` | HTTP `200`, HTTP `200`, HTTP `200` using host `flask-k8s-lab.localhost` |
+
+The live Deployment and both application Pod declarations used exactly:
+
+```text
+registry.gitlab.com/goozcena-gnl/test-lab@sha256:8e5256469386c9aa526f4f6f201ea822b900e098ba5c84d023dd6e6756b006fb
+```
+
+The container runtime reported that same immutable reference for both Pod
+`imageID` values:
+
+```text
+flask-k8s-lab-77d9d94d56-fd2jh:
+registry.gitlab.com/goozcena-gnl/test-lab@sha256:8e5256469386c9aa526f4f6f201ea822b900e098ba5c84d023dd6e6756b006fb
+
+flask-k8s-lab-77d9d94d56-gwpkn:
+registry.gitlab.com/goozcena-gnl/test-lab@sha256:8e5256469386c9aa526f4f6f201ea822b900e098ba5c84d023dd6e6756b006fb
+```
+
+The promoted workload retained `runAsNonRoot: true`, UID/GID `10001`, a
+read-only root filesystem, disabled privilege escalation, all Linux
+capabilities dropped, `RuntimeDefault` seccomp, and disabled service-account
+token automounting. After a stabilization wait, Argo CD remained
+`Synced / Healthy`, the Deployment remained `2/2`, both Pods remained at zero
+restarts, and all tested endpoints remained healthy.
